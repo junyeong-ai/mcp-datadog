@@ -89,3 +89,99 @@ impl LogsTimeseriesHandler {
         Ok(handler.format_list(data, None, Some(meta)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_default_interval() {
+        let params = json!({});
+        let interval = params["interval"].as_str().unwrap_or("1h");
+        assert_eq!(interval, "1h");
+    }
+
+    #[test]
+    fn test_custom_interval() {
+        let params = json!({"interval": "5m"});
+        let interval = params["interval"].as_str().unwrap_or("1h");
+        assert_eq!(interval, "5m");
+    }
+
+    #[test]
+    fn test_default_aggregation() {
+        let params = json!({});
+        let aggregation = params["aggregation"].as_str().unwrap_or("count");
+        assert_eq!(aggregation, "count");
+    }
+
+    #[test]
+    fn test_custom_aggregation() {
+        let params = json!({"aggregation": "avg"});
+        let aggregation = params["aggregation"].as_str().unwrap_or("count");
+        assert_eq!(aggregation, "avg");
+    }
+
+    #[test]
+    fn test_optional_metric_parameter() {
+        let params_with = json!({"metric": "@duration"});
+        let params_without = json!({});
+
+        assert_eq!(params_with["metric"].as_str(), Some("@duration"));
+        assert_eq!(params_without["metric"].as_str(), None);
+    }
+
+    #[test]
+    fn test_group_by_parameter() {
+        let params = json!({
+            "group_by": [
+                {
+                    "facet": "service",
+                    "limit": 5,
+                    "type": "facet"
+                }
+            ]
+        });
+
+        let group_by = params["group_by"].as_array();
+        assert!(group_by.is_some());
+        assert_eq!(group_by.unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_timezone_parameter() {
+        let params = json!({"timezone": "America/New_York"});
+        assert_eq!(params["timezone"].as_str(), Some("America/New_York"));
+    }
+
+    #[test]
+    fn test_default_query() {
+        let params = json!({});
+        let query = params["query"].as_str().unwrap_or("*");
+        assert_eq!(query, "*");
+    }
+
+    #[test]
+    fn test_time_handler_trait() {
+        let handler = LogsTimeseriesHandler;
+        let params = json!({
+            "from": "1 hour ago",
+            "to": "now"
+        });
+
+        let result = handler.parse_time(&params, 1);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_response_formatter_trait() {
+        let handler = LogsTimeseriesHandler;
+        let data = json!({"buckets": []});
+        let meta = json!({"interval": "1h"});
+
+        let response = handler.format_list(data, None, Some(meta));
+        assert!(response.get("data").is_some());
+        assert!(response.get("meta").is_some());
+    }
+}

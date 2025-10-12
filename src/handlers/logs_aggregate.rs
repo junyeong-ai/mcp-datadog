@@ -121,3 +121,148 @@ impl LogsAggregateHandler {
         Ok(handler.format_list(data, None, Some(meta)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_default_query_parameter() {
+        let params = json!({
+            "from": "1 hour ago",
+            "to": "now"
+        });
+
+        let query = params["query"].as_str().unwrap_or("*");
+        assert_eq!(query, "*");
+    }
+
+    #[test]
+    fn test_custom_query_parameter() {
+        let params = json!({
+            "query": "service:web-api",
+            "from": "1 hour ago",
+            "to": "now"
+        });
+
+        let query = params["query"].as_str().unwrap_or("*");
+        assert_eq!(query, "service:web-api");
+    }
+
+    #[test]
+    fn test_default_compute_when_empty() {
+        let params = json!({
+            "compute": []
+        });
+
+        let compute_params = params["compute"].as_array();
+        assert!(compute_params.is_some());
+        assert!(compute_params.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_compute_with_aggregation() {
+        let params = json!({
+            "compute": [
+                {
+                    "aggregation": "count",
+                    "type": "total"
+                }
+            ]
+        });
+
+        let compute_params = params["compute"].as_array().unwrap();
+        assert_eq!(compute_params.len(), 1);
+        assert_eq!(compute_params[0]["aggregation"].as_str(), Some("count"));
+        assert_eq!(compute_params[0]["type"].as_str(), Some("total"));
+    }
+
+    #[test]
+    fn test_compute_with_metric() {
+        let params = json!({
+            "compute": [
+                {
+                    "aggregation": "sum",
+                    "type": "total",
+                    "metric": "@duration"
+                }
+            ]
+        });
+
+        let compute_params = params["compute"].as_array().unwrap();
+        assert_eq!(compute_params[0]["metric"].as_str(), Some("@duration"));
+    }
+
+    #[test]
+    fn test_group_by_parameter() {
+        let params = json!({
+            "group_by": [
+                {
+                    "facet": "status",
+                    "limit": 10,
+                    "type": "facet"
+                }
+            ]
+        });
+
+        let group_by = params["group_by"].as_array();
+        assert!(group_by.is_some());
+        assert_eq!(group_by.unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_group_by_with_sort() {
+        let params = json!({
+            "group_by": [
+                {
+                    "facet": "status",
+                    "limit": 10,
+                    "type": "facet",
+                    "sort": {
+                        "order": "desc",
+                        "type": "measure",
+                        "aggregation": "count"
+                    }
+                }
+            ]
+        });
+
+        let group_by = params["group_by"].as_array().unwrap();
+        let sort = group_by[0]["sort"].as_object();
+        assert!(sort.is_some());
+        assert_eq!(sort.unwrap()["order"].as_str(), Some("desc"));
+    }
+
+    #[test]
+    fn test_optional_timezone_parameter() {
+        let params_with = json!({"timezone": "UTC"});
+        let params_without = json!({});
+
+        assert_eq!(params_with["timezone"].as_str(), Some("UTC"));
+        assert_eq!(params_without["timezone"].as_str(), None);
+    }
+
+    #[test]
+    fn test_time_handler_available() {
+        let handler = LogsAggregateHandler;
+        let params = json!({
+            "from": "1609459200",
+            "to": "1609462800"
+        });
+
+        let result = handler.parse_time(&params, 1);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_response_formatter_available() {
+        let handler = LogsAggregateHandler;
+        let data = json!({"buckets": []});
+        let meta = json!({"query": "*"});
+
+        let response = handler.format_list(data, None, Some(meta));
+        assert!(response.get("data").is_some());
+        assert!(response.get("meta").is_some());
+    }
+}
