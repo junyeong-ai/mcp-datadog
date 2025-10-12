@@ -270,4 +270,91 @@ mod tests {
         let formatted = handler.format_list(data, None, None);
         assert!(formatted.get("data").is_some());
     }
+
+    #[test]
+    fn test_rollup_interval_boundaries() {
+        assert_eq!(MetricsHandler::calculate_rollup_interval(0, 5900, 100), 60);
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 29900, 100),
+            300
+        );
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 59900, 100),
+            600
+        );
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 179900, 100),
+            1800
+        );
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 359900, 100),
+            3600
+        );
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 719900, 100),
+            7200
+        );
+    }
+
+    #[test]
+    fn test_add_rollup_preserves_query_structure() {
+        let query_with_filter = "avg:system.cpu.user{host:web-1,env:prod}";
+        let result = MetricsHandler::add_rollup_to_query(query_with_filter, 300);
+        assert!(result.contains("host:web-1"));
+        assert!(result.contains("env:prod"));
+        assert!(result.ends_with(".rollup(avg, 300)"));
+
+        let query_with_wildcard = "avg:system.cpu.user{*}";
+        let result = MetricsHandler::add_rollup_to_query(query_with_wildcard, 60);
+        assert!(result.contains("{*}"));
+        assert!(result.ends_with(".rollup(avg, 60)"));
+    }
+
+    #[test]
+    fn test_add_rollup_with_all_aggregation_types() {
+        let test_cases = vec![
+            ("avg:metric{*}", "avg"),
+            ("max:metric{*}", "max"),
+            ("min:metric{*}", "min"),
+            ("sum:metric{*}", "sum"),
+            ("count:metric{*}", "avg"),
+            ("metric{*}", "avg"),
+        ];
+
+        for (query, expected_agg) in test_cases {
+            let result = MetricsHandler::add_rollup_to_query(query, 300);
+            let expected_suffix = format!(".rollup({}, 300)", expected_agg);
+            assert!(
+                result.ends_with(&expected_suffix),
+                "Query '{}' should produce rollup with aggregation '{}', got: {}",
+                query,
+                expected_agg,
+                result
+            );
+        }
+    }
+
+    #[test]
+    fn test_calculate_rollup_interval_large_ranges() {
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 2159900, 100),
+            21600
+        );
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 4319900, 100),
+            43200
+        );
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 8639900, 100),
+            86400
+        );
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 86400 * 100, 100),
+            86400
+        );
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 86400 * 1000, 100),
+            86400
+        );
+    }
 }
