@@ -29,10 +29,9 @@ impl DashboardsHandler {
             {
                 for nested_value in nested_array {
                     // Try to deserialize each nested widget
-                    if let Ok(nested_widget) =
-                        serde_json::from_value::<crate::datadog::models::Widget>(
-                            nested_value.clone(),
-                        )
+                    if let Ok(nested_widget) = serde_json::from_value::<
+                        crate::datadog::models::Widget,
+                    >(nested_value.clone())
                     {
                         collect_recursive(&nested_widget, types);
                     }

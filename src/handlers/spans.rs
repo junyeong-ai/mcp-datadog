@@ -73,8 +73,7 @@ impl SpansHandler {
                         "*" => tags_arr.clone(),
                         "" => vec![],
                         filter => {
-                            let prefixes: Vec<&str> =
-                                filter.split(',').map(str::trim).collect();
+                            let prefixes: Vec<&str> = filter.split(',').map(str::trim).collect();
                             tags_arr
                                 .iter()
                                 .filter(|tag| {
