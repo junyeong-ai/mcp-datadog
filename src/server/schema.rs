@@ -48,6 +48,10 @@ impl Server {
                                 "type": "string",
                                 "description": "End time (supports natural language like 'now', ISO8601 timestamps, or Unix timestamps)",
                                 "default": "now"
+                            },
+                            "max_points": {
+                                "type": "integer",
+                                "description": "Maximum number of data points to return (downsample if exceeded). Useful for large time ranges to reduce response size. If not specified, returns all points from API."
                             }
                         },
                         "required": ["query"]
