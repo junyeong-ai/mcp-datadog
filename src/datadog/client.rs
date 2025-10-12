@@ -39,7 +39,6 @@ impl DatadogClient {
         })
     }
 
-
     pub fn get_tag_filter(&self) -> Option<&str> {
         self.tag_filter.as_deref()
     }
@@ -438,11 +437,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_client_new_with_default_site() {
-        let client = DatadogClient::new(
-            "test_api_key".to_string(),
-            "test_app_key".to_string(),
-            None,
-        );
+        let client =
+            DatadogClient::new("test_api_key".to_string(), "test_app_key".to_string(), None);
 
         assert!(client.is_ok());
         let client = client.unwrap();
@@ -478,7 +474,8 @@ mod tests {
                 "key".to_string(),
                 "app".to_string(),
                 Some(region.to_string()),
-            ).unwrap();
+            )
+            .unwrap();
 
             assert_eq!(client.base_url, expected_url);
         }
@@ -492,11 +489,7 @@ mod tests {
             std::env::set_var("DD_TAG_FILTER", "env:,service:");
         }
 
-        let client = DatadogClient::new(
-            "key".to_string(),
-            "app".to_string(),
-            None,
-        ).unwrap();
+        let client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
 
         let filter = client.get_tag_filter();
 
@@ -514,11 +507,7 @@ mod tests {
             std::env::remove_var("DD_TAG_FILTER");
         }
 
-        let client = DatadogClient::new(
-            "key".to_string(),
-            "app".to_string(),
-            None,
-        ).unwrap();
+        let client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
 
         let filter = client.get_tag_filter();
 
@@ -529,4 +518,3 @@ mod tests {
         assert_eq!(filter, None);
     }
 }
-

@@ -64,13 +64,16 @@ impl LogsHandler {
                     }
                     filter => {
                         // Specific prefixes = filter tags
-                        attrs.and_then(|a| a.tags.as_ref().map(|tags| {
-                            let prefixes: Vec<&str> = filter.split(',').map(str::trim).collect();
-                            tags.iter()
-                                .filter(|tag| prefixes.iter().any(|p| tag.starts_with(p)))
-                                .cloned()
-                                .collect::<Vec<_>>()
-                        }))
+                        attrs.and_then(|a| {
+                            a.tags.as_ref().map(|tags| {
+                                let prefixes: Vec<&str> =
+                                    filter.split(',').map(str::trim).collect();
+                                tags.iter()
+                                    .filter(|tag| prefixes.iter().any(|p| tag.starts_with(p)))
+                                    .cloned()
+                                    .collect::<Vec<_>>()
+                            })
+                        })
                     }
                 };
 
@@ -106,11 +109,10 @@ mod tests {
     fn test_missing_query_parameter() {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let client = Arc::new(DatadogClient::new(
-                "test_key".to_string(),
-                "test_app_key".to_string(),
-                None,
-            ).unwrap());
+            let client = Arc::new(
+                DatadogClient::new("test_key".to_string(), "test_app_key".to_string(), None)
+                    .unwrap(),
+            );
 
             let params = json!({
                 "from": "1 hour ago",
@@ -182,4 +184,3 @@ mod tests {
         assert!(formatted.get("data").is_some());
     }
 }
-

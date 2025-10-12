@@ -16,7 +16,10 @@ impl DashboardsHandler {
     fn collect_widget_types(widgets: &[crate::datadog::models::Widget]) -> Vec<String> {
         let mut types = std::collections::HashSet::new();
 
-        fn collect_recursive(widget: &crate::datadog::models::Widget, types: &mut std::collections::HashSet<String>) {
+        fn collect_recursive(
+            widget: &crate::datadog::models::Widget,
+            types: &mut std::collections::HashSet<String>,
+        ) {
             types.insert(widget.definition.widget_type.clone());
 
             // If it's a group widget, check for nested widgets in extra field
@@ -25,7 +28,11 @@ impl DashboardsHandler {
                     if let Some(nested_array) = widgets_value.as_array() {
                         for nested_value in nested_array {
                             // Try to deserialize each nested widget
-                            if let Ok(nested_widget) = serde_json::from_value::<crate::datadog::models::Widget>(nested_value.clone()) {
+                            if let Ok(nested_widget) =
+                                serde_json::from_value::<crate::datadog::models::Widget>(
+                                    nested_value.clone(),
+                                )
+                            {
                                 collect_recursive(&nested_widget, types);
                             }
                         }

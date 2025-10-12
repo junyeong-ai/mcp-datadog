@@ -301,7 +301,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_concurrent_cache_access() {
-        let cache: Arc<GenericCache<i32>> = Arc::new(GenericCache::new(Duration::from_secs(60), 100));
+        let cache: Arc<GenericCache<i32>> =
+            Arc::new(GenericCache::new(Duration::from_secs(60), 100));
         let mut handles = vec![];
 
         // Spawn multiple concurrent writes
@@ -324,4 +325,3 @@ mod tests {
         }
     }
 }
-

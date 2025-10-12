@@ -84,7 +84,7 @@ mod tests {
         let error = result.map_err(DatadogError::from).unwrap_err();
 
         match error {
-            DatadogError::JsonError(_) => {},
+            DatadogError::JsonError(_) => {}
             _ => panic!("Expected JsonError"),
         }
     }

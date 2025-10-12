@@ -95,7 +95,7 @@ mod tests {
         let result = parse_time("invalid time string xyz");
         assert!(result.is_err());
         match result.unwrap_err() {
-            DatadogError::DateParseError(_) => {},
+            DatadogError::DateParseError(_) => {}
             _ => panic!("Expected DateParseError"),
         }
     }

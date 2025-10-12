@@ -66,12 +66,7 @@ pub trait ResponseFormatter {
     }
 
     /// Format pagination metadata
-    fn format_pagination(
-        &self,
-        page: usize,
-        page_size: usize,
-        total: usize,
-    ) -> Value {
+    fn format_pagination(&self, page: usize, page_size: usize, total: usize) -> Value {
         json!({
             "page": page,
             "page_size": page_size,
@@ -214,4 +209,3 @@ mod tests {
         assert_eq!(response["data"], data);
     }
 }
-

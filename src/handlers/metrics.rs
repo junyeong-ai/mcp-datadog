@@ -64,9 +64,12 @@ impl MetricsHandler {
     pub async fn query(client: Arc<DatadogClient>, params: &Value) -> Result<Value> {
         let handler = MetricsHandler;
 
-        let mut query = params["query"].as_str().ok_or_else(|| {
-            crate::error::DatadogError::InvalidInput("Missing 'query' parameter".to_string())
-        })?.to_string();
+        let mut query = params["query"]
+            .as_str()
+            .ok_or_else(|| {
+                crate::error::DatadogError::InvalidInput("Missing 'query' parameter".to_string())
+            })?
+            .to_string();
 
         let time = handler.parse_time(params, 1)?; // v1 API
 
@@ -150,10 +153,16 @@ mod tests {
     #[test]
     fn test_calculate_rollup_interval() {
         // 30000s / 100 points = 300s, 300 >= 300 and < 600 so rounds to 600
-        assert_eq!(MetricsHandler::calculate_rollup_interval(0, 30000, 100), 600);
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 30000, 100),
+            600
+        );
 
         // 86400s / 100 points = 864s, 864 >= 600 and < 1800 so rounds to 1800
-        assert_eq!(MetricsHandler::calculate_rollup_interval(0, 86400, 100), 1800);
+        assert_eq!(
+            MetricsHandler::calculate_rollup_interval(0, 86400, 100),
+            1800
+        );
 
         // Very short range: 100s / 100 = 1s, < 60 so gets 60s minimum
         assert_eq!(MetricsHandler::calculate_rollup_interval(0, 100, 100), 60);
@@ -184,11 +193,10 @@ mod tests {
     fn test_missing_query_parameter() {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let client = Arc::new(DatadogClient::new(
-                "test_key".to_string(),
-                "test_app_key".to_string(),
-                None,
-            ).unwrap());
+            let client = Arc::new(
+                DatadogClient::new("test_key".to_string(), "test_app_key".to_string(), None)
+                    .unwrap(),
+            );
 
             let params = json!({
                 "from": "1 hour ago",
@@ -263,4 +271,3 @@ mod tests {
         assert!(formatted.get("data").is_some());
     }
 }
-

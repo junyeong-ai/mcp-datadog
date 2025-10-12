@@ -9,5 +9,5 @@ pub mod server;
 pub mod utils;
 
 // Re-export commonly used types
-pub use error::{DatadogError, Result};
 pub use datadog::DatadogClient;
+pub use error::{DatadogError, Result};

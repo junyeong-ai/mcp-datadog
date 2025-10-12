@@ -63,8 +63,7 @@ impl MonitorsHandler {
                 .collect::<Vec<_>>()
         );
 
-        let pagination =
-            handler.format_pagination(page, page_size, monitors.len());
+        let pagination = handler.format_pagination(page, page_size, monitors.len());
 
         Ok(handler.format_list(data, Some(pagination), None))
     }

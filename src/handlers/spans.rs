@@ -78,9 +78,7 @@ impl SpansHandler {
                                             .iter()
                                             .filter(|tag| {
                                                 if let Some(tag_str) = tag.as_str() {
-                                                    prefixes
-                                                        .iter()
-                                                        .any(|p| tag_str.starts_with(p))
+                                                    prefixes.iter().any(|p| tag_str.starts_with(p))
                                                 } else {
                                                     false
                                                 }
@@ -89,8 +87,7 @@ impl SpansHandler {
                                             .collect()
                                     }
                                 };
-                                attrs_obj
-                                    .insert("tags".to_string(), Value::Array(filtered_tags));
+                                attrs_obj.insert("tags".to_string(), Value::Array(filtered_tags));
                             }
                         }
                     }
