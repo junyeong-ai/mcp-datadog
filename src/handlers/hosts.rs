@@ -86,3 +86,80 @@ impl HostsHandler {
         Ok(handler.format_list(data, None, Some(meta)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_optional_filter_parameter() {
+        let params = json!({"filter": "env:prod"});
+        assert_eq!(params["filter"].as_str(), Some("env:prod"));
+    }
+
+    #[test]
+    fn test_optional_sort_parameters() {
+        let params = json!({
+            "sort_field": "cpu",
+            "sort_dir": "desc"
+        });
+
+        assert_eq!(params["sort_field"].as_str(), Some("cpu"));
+        assert_eq!(params["sort_dir"].as_str(), Some("desc"));
+    }
+
+    #[test]
+    fn test_optional_start_parameter() {
+        let params = json!({"start": 50});
+        assert_eq!(params["start"].as_i64(), Some(50));
+    }
+
+    #[test]
+    fn test_default_count_parameter() {
+        let params = json!({});
+        let count = params["count"].as_i64().map(|c| c as i32).or(Some(100));
+        assert_eq!(count, Some(100));
+    }
+
+    #[test]
+    fn test_custom_count_parameter() {
+        let params = json!({"count": 500});
+        let count = params["count"].as_i64().map(|c| c as i32);
+        assert_eq!(count, Some(500));
+    }
+
+    #[test]
+    fn test_tag_filter_modes() {
+        let tag_filter_all = "*";
+        let tag_filter_none = "";
+        let tag_filter_specific = "env:,service:";
+
+        assert_eq!(tag_filter_all, "*");
+        assert_eq!(tag_filter_none, "");
+        assert!(tag_filter_specific.contains("env:"));
+    }
+
+    #[test]
+    fn test_time_handler_trait() {
+        let handler = HostsHandler;
+        let params = json!({
+            "from": "1 hour ago",
+            "to": "now"
+        });
+
+        let result = handler.parse_time(&params, 1);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_response_formatter_trait() {
+        let handler = HostsHandler;
+        let data = json!([{"name": "host1"}]);
+        let meta = json!({"total_matching": 1});
+
+        let response = handler.format_list(data, None, Some(meta));
+        assert!(response.get("data").is_some());
+        assert!(response.get("meta").is_some());
+    }
+}

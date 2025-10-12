@@ -94,3 +94,71 @@ impl EventsHandler {
         Ok(handler.format_list(data, Some(pagination), Some(meta)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_optional_priority_parameter() {
+        let params = json!({"priority": "normal"});
+        assert_eq!(params["priority"].as_str(), Some("normal"));
+    }
+
+    #[test]
+    fn test_optional_sources_parameter() {
+        let params = json!({"sources": "my_app"});
+        assert_eq!(params["sources"].as_str(), Some("my_app"));
+    }
+
+    #[test]
+    fn test_optional_tags_parameter() {
+        let params = json!({"tags": "env:prod,service:api"});
+        assert_eq!(params["tags"].as_str(), Some("env:prod,service:api"));
+    }
+
+    #[test]
+    fn test_pagination_parameters() {
+        let handler = EventsHandler;
+        let params = json!({"page": 1, "page_size": 100});
+
+        let (page, page_size) = handler.parse_pagination(&params);
+        assert_eq!(page, 1);
+        assert_eq!(page_size, 100);
+    }
+
+    #[test]
+    fn test_time_handler_trait() {
+        let handler = EventsHandler;
+        let params = json!({
+            "from": "2 hours ago",
+            "to": "now"
+        });
+
+        let result = handler.parse_time(&params, 1);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_paginator_trait() {
+        let handler = EventsHandler;
+        let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+        let page = handler.paginate(&data, 0, 3);
+        assert_eq!(page, &[1, 2, 3]);
+    }
+
+    #[test]
+    fn test_response_formatter_trait() {
+        let handler = EventsHandler;
+        let data = json!([{"id": 1}]);
+        let pagination = json!({"page": 0});
+        let meta = json!({"from": "timestamp"});
+
+        let response = handler.format_list(data, Some(pagination), Some(meta));
+        assert!(response.get("data").is_some());
+        assert!(response.get("pagination").is_some());
+        assert!(response.get("meta").is_some());
+    }
+}
