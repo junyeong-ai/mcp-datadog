@@ -42,26 +42,14 @@ impl DashboardsHandler {
 
         if start >= total_count {
             let data = json!([]);
-            let pagination = json!({
-                "page": page,
-                "page_size": page_size,
-                "total": total_count,
-                "count": 0,
-                "has_next": false
-            });
+            let pagination = handler.format_pagination(page, page_size, total_count);
             return Ok(handler.format_list(data, Some(pagination), None));
         }
 
         let paginated_dashboards = &all_dashboards[start..end];
         let data = json!(paginated_dashboards);
 
-        let pagination = json!({
-            "page": page,
-            "page_size": page_size,
-            "total": total_count,
-            "count": paginated_dashboards.len(),
-            "has_next": end < total_count
-        });
+        let pagination = handler.format_pagination(page, page_size, total_count);
 
         Ok(handler.format_list(data, Some(pagination), None))
     }

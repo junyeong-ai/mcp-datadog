@@ -128,7 +128,7 @@ impl ServicesHandler {
                 .collect::<Vec<_>>()
         );
 
-        let pagination = handler.format_pagination(page, page_size, services_count, services_count);
+        let pagination = handler.format_pagination(page, page_size, services_count);
 
         let meta = json!({
             "filter_env": filter_env,

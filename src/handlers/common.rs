@@ -71,13 +71,11 @@ pub trait ResponseFormatter {
         page: usize,
         page_size: usize,
         total: usize,
-        count: usize,
     ) -> Value {
         json!({
             "page": page,
             "page_size": page_size,
             "total": total,
-            "count": count,
             "has_next": (page + 1) * page_size < total
         })
     }

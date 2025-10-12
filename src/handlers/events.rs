@@ -85,7 +85,7 @@ impl EventsHandler {
         );
 
         let pagination =
-            handler.format_pagination(page, page_size, events.len(), events_slice.len());
+            handler.format_pagination(page, page_size, events.len());
         let meta = json!({
             "from": crate::utils::format_timestamp(start),
             "to": crate::utils::format_timestamp(end)

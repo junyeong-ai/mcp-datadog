@@ -52,13 +52,12 @@ impl SpansHandler {
         let data = response["data"].as_array().unwrap_or(&vec![]).clone();
         let spans_count = data.len();
 
-        let pagination = handler.format_pagination(page, page_size, spans_count, spans_count);
+        let pagination = handler.format_pagination(page, page_size, spans_count);
 
         let meta = json!({
             "query": query,
             "from": from,
-            "to": to,
-            "count": spans_count
+            "to": to
         });
 
         Ok(handler.format_list(json!(data), Some(pagination), Some(meta)))

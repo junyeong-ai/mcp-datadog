@@ -64,7 +64,7 @@ impl MonitorsHandler {
         );
 
         let pagination =
-            handler.format_pagination(page, page_size, monitors.len(), monitors_slice.len());
+            handler.format_pagination(page, page_size, monitors.len());
 
         Ok(handler.format_list(data, Some(pagination), None))
     }
