@@ -12,6 +12,37 @@ impl Paginator for DashboardsHandler {}
 impl ResponseFormatter for DashboardsHandler {}
 
 impl DashboardsHandler {
+    // Recursively collect widget types from widgets (including nested groups)
+    fn collect_widget_types(widgets: &[crate::datadog::models::Widget]) -> Vec<String> {
+        let mut types = std::collections::HashSet::new();
+
+        fn collect_recursive(widget: &crate::datadog::models::Widget, types: &mut std::collections::HashSet<String>) {
+            types.insert(widget.definition.widget_type.clone());
+
+            // If it's a group widget, check for nested widgets in extra field
+            if widget.definition.widget_type == "group" {
+                if let Some(widgets_value) = widget.definition.extra.get("widgets") {
+                    if let Some(nested_array) = widgets_value.as_array() {
+                        for nested_value in nested_array {
+                            // Try to deserialize each nested widget
+                            if let Ok(nested_widget) = serde_json::from_value::<crate::datadog::models::Widget>(nested_value.clone()) {
+                                collect_recursive(&nested_widget, types);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for widget in widgets {
+            collect_recursive(widget, &mut types);
+        }
+
+        let mut types_vec: Vec<String> = types.into_iter().collect();
+        types_vec.sort();
+        types_vec
+    }
+
     pub async fn list(
         client: Arc<DatadogClient>,
         cache: Arc<DataCache>,
@@ -87,11 +118,7 @@ impl DashboardsHandler {
             }).unwrap_or_default(),
             "widgets_summary": json!({
                 "total_widgets": response.widgets.len(),
-                "widget_types": response.widgets.iter()
-                    .map(|w| &w.definition.widget_type)
-                    .collect::<std::collections::HashSet<_>>()
-                    .into_iter()
-                    .collect::<Vec<_>>(),
+                "widget_types": Self::collect_widget_types(&response.widgets),
                 "widgets": response.widgets.iter().map(|widget| json!({
                     "id": widget.id,
                     "type": widget.definition.widget_type,
