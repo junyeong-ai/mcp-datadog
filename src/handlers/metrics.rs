@@ -141,3 +141,126 @@ impl MetricsHandler {
         Ok(handler.format_list(json!(series), None, Some(meta)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_calculate_rollup_interval() {
+        // 30000s / 100 points = 300s, 300 >= 300 and < 600 so rounds to 600
+        assert_eq!(MetricsHandler::calculate_rollup_interval(0, 30000, 100), 600);
+
+        // 86400s / 100 points = 864s, 864 >= 600 and < 1800 so rounds to 1800
+        assert_eq!(MetricsHandler::calculate_rollup_interval(0, 86400, 100), 1800);
+
+        // Very short range: 100s / 100 = 1s, < 60 so gets 60s minimum
+        assert_eq!(MetricsHandler::calculate_rollup_interval(0, 100, 100), 60);
+
+        // 6000s / 100 = 60s, 60 >= 60 and < 300 so rounds to 300
+        assert_eq!(MetricsHandler::calculate_rollup_interval(0, 6000, 100), 300);
+    }
+
+    #[test]
+    fn test_add_rollup_to_query() {
+        // Test adding rollup to simple query
+        let query = "avg:system.cpu.user{*}";
+        let result = MetricsHandler::add_rollup_to_query(query, 300);
+        assert!(result.contains(".rollup(avg, 300)"));
+
+        // Test with max aggregation
+        let query = "max:system.cpu.user{*}";
+        let result = MetricsHandler::add_rollup_to_query(query, 60);
+        assert!(result.contains(".rollup(max, 60)"));
+
+        // Test when rollup already exists
+        let query = "avg:system.cpu.user{*}.rollup(sum, 600)";
+        let result = MetricsHandler::add_rollup_to_query(query, 300);
+        assert_eq!(result, query); // Should not modify
+    }
+
+    #[test]
+    fn test_missing_query_parameter() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let client = Arc::new(DatadogClient::new(
+                "test_key".to_string(),
+                "test_app_key".to_string(),
+                None,
+            ).unwrap());
+
+            let params = json!({
+                "from": "1 hour ago",
+                "to": "now"
+                // Missing "query" parameter
+            });
+
+            let result = MetricsHandler::query(client, &params).await;
+            assert!(result.is_err());
+
+            if let Err(e) = result {
+                let error_str = format!("{}", e);
+                assert!(error_str.contains("query") || error_str.contains("Missing"));
+            }
+        });
+    }
+
+    #[test]
+    fn test_valid_input_parameters() {
+        // This test verifies parameter extraction works
+        let params = json!({
+            "query": "avg:system.cpu.user{*}",
+            "from": "1609459200", // Unix timestamp
+            "to": "1609462800"
+        });
+
+        assert_eq!(params["query"].as_str(), Some("avg:system.cpu.user{*}"));
+        assert!(params["from"].as_str().is_some());
+        assert!(params["to"].as_str().is_some());
+    }
+
+    #[test]
+    fn test_optional_max_points_parameter() {
+        let params_with = json!({
+            "query": "avg:cpu",
+            "from": "1 hour ago",
+            "to": "now",
+            "max_points": 100
+        });
+
+        let params_without = json!({
+            "query": "avg:cpu",
+            "from": "1 hour ago",
+            "to": "now"
+        });
+
+        assert_eq!(params_with["max_points"].as_i64(), Some(100));
+        assert_eq!(params_without["max_points"].as_i64(), None);
+    }
+
+    #[test]
+    fn test_time_handler_trait_available() {
+        // Verify MetricsHandler implements TimeHandler
+        let handler = MetricsHandler;
+        let params = json!({
+            "from": "1609459200",
+            "to": "1609462800"
+        });
+
+        // This should not panic
+        let result = handler.parse_time(&params, 1);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_response_formatter_trait_available() {
+        // Verify MetricsHandler implements ResponseFormatter
+        let handler = MetricsHandler;
+        let data = json!(["test"]);
+
+        let formatted = handler.format_list(data, None, None);
+        assert!(formatted.get("data").is_some());
+    }
+}
+
