@@ -386,7 +386,7 @@ This shows:
 3. **YAGNI Principle**: Don't build infrastructure for future use, build only what's needed now
 4. **No Comments**: Code should be self-documenting through clear naming
 5. **Minimal Logging**: Only log errors and debug info, default to `warn` level
-6. **Clean Responses**: No debug fields in production API responses
+6. **Clean Responses**: No debug fields, no duplicate data, no request echo fields in production responses
 7. **Consistent Formatting**: Use `cargo fmt` for all code
 8. **Trait-based Design**: Common functionality through shared traits
 
@@ -419,6 +419,45 @@ This shows:
 - **Selective Caching**: Only cache APIs without server-side pagination (monitors, events)
 - **Cache Invalidation**: Page 0 always fetches fresh data
 - **Async Operations**: Non-blocking cache operations with RwLock
+
+## Response Structure
+
+All tool responses follow a consistent, optimized structure with essential data only:
+
+```json
+{
+  "data": { /* Core response data */ },
+  "meta": { /* Essential metadata: query, from, to, counts, etc. */ },
+  "pagination": { /* Only for paginated endpoints */ }
+}
+```
+
+**Design Principles:**
+- **Essential Data Only**: Responses contain only data needed by AI agents
+- **Consistent Structure**: All tools use the same response format
+- **Efficient Transport**: Optimized payloads for MCP protocol communication
+- **Clean Metadata**: Essential metadata fields (query, time range, counts) included in meta object
+
+**Example Response (logs_aggregate):**
+```json
+{
+  "data": {
+    "buckets": [
+      {
+        "by": {},
+        "computes": { "c0": 11519456 }
+      }
+    ]
+  },
+  "meta": {
+    "buckets_count": 1,
+    "from": "1760254364000",
+    "to": "1760257964000",
+    "query": "*",
+    "timezone": null
+  }
+}
+```
 
 ## Troubleshooting Common Issues
 

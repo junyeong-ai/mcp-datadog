@@ -16,6 +16,7 @@ A high-performance Model Context Protocol (MCP) server that provides AI agents w
 - **Advanced Log Analytics**: Aggregations and timeseries analysis with proper v2 API compliance
 - **APM Integration**: Full spans search and services catalog access
 - **AI Agent Optimized**: Tool descriptions designed for optimal AI agent comprehension
+- **Optimized Response Payloads**: Clean responses with essential data only, no duplicate fields
 - **Resilient Network Layer**: Built-in exponential backoff and automatic retry logic
 - **Direct stdio Communication**: Efficient JSON-RPC 2.0 protocol over stdin/stdout
 
