@@ -97,12 +97,11 @@ impl MonitorsHandler {
                 });
 
                 // Only include silenced if it has entries
-                if let Some(ref silenced) = o.silenced {
-                    if let Some(obj) = silenced.as_object() {
-                        if !obj.is_empty() {
-                            opts["silenced"] = json!(silenced);
-                        }
-                    }
+                if let Some(ref silenced) = o.silenced
+                    && let Some(obj) = silenced.as_object()
+                    && !obj.is_empty()
+                {
+                    opts["silenced"] = json!(silenced);
                 }
 
                 opts

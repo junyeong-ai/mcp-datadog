@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn test_tag_filter_modes() {
         // Test all tags mode
-        let _tags = vec!["env:prod".to_string(), "service:api".to_string()];
+        let _tags = ["env:prod".to_string(), "service:api".to_string()];
         let filter_all = "*";
         assert_eq!(filter_all, "*");
 

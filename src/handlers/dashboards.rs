@@ -23,19 +23,18 @@ impl DashboardsHandler {
             types.insert(widget.definition.widget_type.clone());
 
             // If it's a group widget, check for nested widgets in extra field
-            if widget.definition.widget_type == "group" {
-                if let Some(widgets_value) = widget.definition.extra.get("widgets") {
-                    if let Some(nested_array) = widgets_value.as_array() {
-                        for nested_value in nested_array {
-                            // Try to deserialize each nested widget
-                            if let Ok(nested_widget) =
-                                serde_json::from_value::<crate::datadog::models::Widget>(
-                                    nested_value.clone(),
-                                )
-                            {
-                                collect_recursive(&nested_widget, types);
-                            }
-                        }
+            if widget.definition.widget_type == "group"
+                && let Some(widgets_value) = widget.definition.extra.get("widgets")
+                && let Some(nested_array) = widgets_value.as_array()
+            {
+                for nested_value in nested_array {
+                    // Try to deserialize each nested widget
+                    if let Ok(nested_widget) =
+                        serde_json::from_value::<crate::datadog::models::Widget>(
+                            nested_value.clone(),
+                        )
+                    {
+                        collect_recursive(&nested_widget, types);
                     }
                 }
             }

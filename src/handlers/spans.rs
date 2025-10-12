@@ -64,33 +64,31 @@ impl SpansHandler {
                 let mut span_obj = span.as_object().unwrap().clone();
 
                 // Apply tag filtering to attributes.tags
-                if let Some(attrs) = span_obj.get_mut("attributes") {
-                    if let Some(attrs_obj) = attrs.as_object_mut() {
-                        if let Some(tags) = attrs_obj.get("tags") {
-                            if let Some(tags_arr) = tags.as_array() {
-                                let filtered_tags = match tag_filter {
-                                    "*" => tags_arr.clone(),
-                                    "" => vec![],
-                                    filter => {
-                                        let prefixes: Vec<&str> =
-                                            filter.split(',').map(str::trim).collect();
-                                        tags_arr
-                                            .iter()
-                                            .filter(|tag| {
-                                                if let Some(tag_str) = tag.as_str() {
-                                                    prefixes.iter().any(|p| tag_str.starts_with(p))
-                                                } else {
-                                                    false
-                                                }
-                                            })
-                                            .cloned()
-                                            .collect()
+                if let Some(attrs) = span_obj.get_mut("attributes")
+                    && let Some(attrs_obj) = attrs.as_object_mut()
+                    && let Some(tags) = attrs_obj.get("tags")
+                    && let Some(tags_arr) = tags.as_array()
+                {
+                    let filtered_tags = match tag_filter {
+                        "*" => tags_arr.clone(),
+                        "" => vec![],
+                        filter => {
+                            let prefixes: Vec<&str> =
+                                filter.split(',').map(str::trim).collect();
+                            tags_arr
+                                .iter()
+                                .filter(|tag| {
+                                    if let Some(tag_str) = tag.as_str() {
+                                        prefixes.iter().any(|p| tag_str.starts_with(p))
+                                    } else {
+                                        false
                                     }
-                                };
-                                attrs_obj.insert("tags".to_string(), Value::Array(filtered_tags));
-                            }
+                                })
+                                .cloned()
+                                .collect()
                         }
-                    }
+                    };
+                    attrs_obj.insert("tags".to_string(), Value::Array(filtered_tags));
                 }
 
                 Value::Object(span_obj)
