@@ -202,3 +202,126 @@ pub fn create_cache_key<T: Serialize>(endpoint: &str, params: &T) -> String {
 
     format!("{}:{:x}", endpoint, hash)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn test_cache_set_and_get() {
+        let cache: GenericCache<String> = GenericCache::new(Duration::from_secs(60), 100);
+
+        cache.set("key1".to_string(), "value1".to_string()).await;
+
+        let result = cache.get("key1").await;
+        assert_eq!(result, Some("value1".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_cache_miss() {
+        let cache: GenericCache<String> = GenericCache::new(Duration::from_secs(60), 100);
+
+        let result = cache.get("nonexistent").await;
+        assert_eq!(result, None);
+    }
+
+    #[tokio::test]
+    async fn test_cache_ttl_expiration() {
+        let cache: GenericCache<String> = GenericCache::new(Duration::from_millis(100), 100);
+
+        cache.set("key1".to_string(), "value1".to_string()).await;
+
+        // Should exist immediately
+        assert_eq!(cache.get("key1").await, Some("value1".to_string()));
+
+        // Wait for TTL to expire
+        tokio::time::sleep(Duration::from_millis(150)).await;
+
+        // Should be expired now
+        assert_eq!(cache.get("key1").await, None);
+    }
+
+    #[tokio::test]
+    async fn test_cache_get_or_fetch_hit() {
+        let cache: GenericCache<i32> = GenericCache::new(Duration::from_secs(60), 100);
+
+        // Pre-populate cache
+        cache.set("key1".to_string(), 42).await;
+
+        // Fetch should return cached value without calling fetch function
+        let result = cache.get_or_fetch("key1", || async { Ok(100) }).await;
+        assert_eq!(result.unwrap(), 42); // Should be cached value, not 100
+    }
+
+    #[tokio::test]
+    async fn test_cache_get_or_fetch_miss() {
+        let cache: GenericCache<i32> = GenericCache::new(Duration::from_secs(60), 100);
+
+        // Fetch should call the function and cache the result
+        let result = cache.get_or_fetch("key1", || async { Ok(42) }).await;
+        assert_eq!(result.unwrap(), 42);
+
+        // Second fetch should return cached value
+        let result2 = cache.get("key1").await;
+        assert_eq!(result2, Some(42));
+    }
+
+    #[tokio::test]
+    async fn test_cache_cleanup_expired() {
+        let cache: GenericCache<String> = GenericCache::new(Duration::from_millis(50), 100);
+
+        // Add some entries
+        cache.set("key1".to_string(), "value1".to_string()).await;
+        cache.set("key2".to_string(), "value2".to_string()).await;
+
+        // Wait for expiration
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // Cleanup should remove expired entries
+        let removed = cache.cleanup_expired().await;
+        assert_eq!(removed, 2);
+    }
+
+    #[test]
+    fn test_create_cache_key() {
+        let key1 = create_cache_key("/api/metrics", &json!({"query": "cpu"}));
+        let key2 = create_cache_key("/api/metrics", &json!({"query": "cpu"}));
+        let key3 = create_cache_key("/api/metrics", &json!({"query": "mem"}));
+
+        // Same params should create same key
+        assert_eq!(key1, key2);
+
+        // Different params should create different key
+        assert_ne!(key1, key3);
+
+        // Keys should start with endpoint
+        assert!(key1.starts_with("/api/metrics:"));
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_cache_access() {
+        let cache: Arc<GenericCache<i32>> = Arc::new(GenericCache::new(Duration::from_secs(60), 100));
+        let mut handles = vec![];
+
+        // Spawn multiple concurrent writes
+        for i in 0..10 {
+            let cache_clone = cache.clone();
+            handles.push(tokio::spawn(async move {
+                cache_clone.set(format!("key{}", i), i).await;
+            }));
+        }
+
+        // Wait for all writes
+        for handle in handles {
+            handle.await.unwrap();
+        }
+
+        // Verify all writes succeeded
+        for i in 0..10 {
+            let result = cache.get(&format!("key{}", i)).await;
+            assert_eq!(result, Some(i));
+        }
+    }
+}
+
