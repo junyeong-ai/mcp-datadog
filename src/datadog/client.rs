@@ -517,4 +517,278 @@ mod tests {
 
         assert_eq!(filter, None);
     }
+
+    #[tokio::test]
+    async fn test_handle_response_success() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/test"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "status": "ok",
+                "data": "test_value"
+            })))
+            .mount(&mock_server)
+            .await;
+
+        let mut client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
+        client.base_url = mock_server.uri();
+
+        #[derive(serde::Deserialize)]
+        struct TestResponse {
+            status: String,
+            data: String,
+        }
+
+        let result: Result<TestResponse> = client
+            .request(reqwest::Method::GET, "/api/v1/test", None, None::<()>)
+            .await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.status, "ok");
+        assert_eq!(response.data, "test_value");
+    }
+
+    #[tokio::test]
+    async fn test_handle_response_unauthorized() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/test"))
+            .respond_with(ResponseTemplate::new(401).set_body_string("Unauthorized"))
+            .mount(&mock_server)
+            .await;
+
+        let mut client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
+        client.base_url = mock_server.uri();
+
+        let result: Result<serde_json::Value> = client
+            .request(reqwest::Method::GET, "/api/v1/test", None, None::<()>)
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DatadogError::AuthError(msg) => {
+                assert!(msg.contains("Unauthorized"));
+            }
+            _ => panic!("Expected AuthError"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_response_forbidden() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/test"))
+            .respond_with(ResponseTemplate::new(403).set_body_string("Forbidden"))
+            .mount(&mock_server)
+            .await;
+
+        let mut client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
+        client.base_url = mock_server.uri();
+
+        let result: Result<serde_json::Value> = client
+            .request(reqwest::Method::GET, "/api/v1/test", None, None::<()>)
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DatadogError::AuthError(msg) => {
+                assert!(msg.contains("Forbidden"));
+            }
+            _ => panic!("Expected AuthError"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_response_rate_limit() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/test"))
+            .respond_with(ResponseTemplate::new(429).set_body_string("Rate limit exceeded"))
+            .mount(&mock_server)
+            .await;
+
+        let mut client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
+        client.base_url = mock_server.uri();
+
+        let result: Result<serde_json::Value> = client
+            .request(reqwest::Method::GET, "/api/v1/test", None, None::<()>)
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DatadogError::RateLimitError => {}
+            _ => panic!("Expected RateLimitError"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_response_timeout() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/test"))
+            .respond_with(ResponseTemplate::new(408).set_body_string("Request timeout"))
+            .mount(&mock_server)
+            .await;
+
+        let mut client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
+        client.base_url = mock_server.uri();
+
+        let result: Result<serde_json::Value> = client
+            .request(reqwest::Method::GET, "/api/v1/test", None, None::<()>)
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DatadogError::TimeoutError => {}
+            _ => panic!("Expected TimeoutError"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_response_server_error() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/test"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("Internal server error"))
+            .mount(&mock_server)
+            .await;
+
+        let mut client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
+        client.base_url = mock_server.uri();
+
+        let result: Result<serde_json::Value> = client
+            .request(reqwest::Method::GET, "/api/v1/test", None, None::<()>)
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DatadogError::ApiError(msg) => {
+                assert!(msg.contains("HTTP 500"));
+                assert!(msg.contains("Internal server error"));
+            }
+            _ => panic!("Expected ApiError"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_request_retry_logic() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicU32, Ordering};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        let call_count = Arc::new(AtomicU32::new(0));
+        let call_count_clone = call_count.clone();
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/test"))
+            .respond_with(move |_req: &wiremock::Request| {
+                let count = call_count_clone.fetch_add(1, Ordering::SeqCst);
+                if count < 2 {
+                    ResponseTemplate::new(500)
+                } else {
+                    ResponseTemplate::new(200).set_body_json(serde_json::json!({"status": "ok"}))
+                }
+            })
+            .mount(&mock_server)
+            .await;
+
+        let mut client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
+        client.base_url = mock_server.uri();
+
+        let result: Result<serde_json::Value> = client
+            .request(reqwest::Method::GET, "/api/v1/test", None, None::<()>)
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(call_count.load(Ordering::SeqCst), 3);
+    }
+
+    #[tokio::test]
+    async fn test_request_max_retries() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicU32, Ordering};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        let call_count = Arc::new(AtomicU32::new(0));
+        let call_count_clone = call_count.clone();
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/test"))
+            .respond_with(move |_req: &wiremock::Request| {
+                call_count_clone.fetch_add(1, Ordering::SeqCst);
+                ResponseTemplate::new(500)
+            })
+            .mount(&mock_server)
+            .await;
+
+        let mut client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
+        client.base_url = mock_server.uri();
+
+        let result: Result<serde_json::Value> = client
+            .request(reqwest::Method::GET, "/api/v1/test", None, None::<()>)
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(call_count.load(Ordering::SeqCst), 4);
+    }
+
+    #[tokio::test]
+    async fn test_request_success_first_try() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicU32, Ordering};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        let call_count = Arc::new(AtomicU32::new(0));
+        let call_count_clone = call_count.clone();
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/test"))
+            .respond_with(move |_req: &wiremock::Request| {
+                call_count_clone.fetch_add(1, Ordering::SeqCst);
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"status": "ok"}))
+            })
+            .mount(&mock_server)
+            .await;
+
+        let mut client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
+        client.base_url = mock_server.uri();
+
+        let result: Result<serde_json::Value> = client
+            .request(reqwest::Method::GET, "/api/v1/test", None, None::<()>)
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(call_count.load(Ordering::SeqCst), 1);
+    }
 }
