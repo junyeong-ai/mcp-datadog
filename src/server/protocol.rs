@@ -332,3 +332,257 @@ impl Server {
         Ok(None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn create_test_server() -> Server {
+        Server::new("test_key".to_string(), "test_app_key".to_string(), None).unwrap()
+    }
+
+    #[test]
+    fn test_create_error_response_format() {
+        let response =
+            Server::create_error_response(-32602, "Invalid params".to_string(), Some(json!(123)));
+
+        assert_eq!(response.jsonrpc, "2.0");
+        assert!(response.result.is_none());
+        assert!(response.error.is_some());
+        assert_eq!(response.id, Some(json!(123)));
+
+        let error = response.error.unwrap();
+        assert_eq!(error.code, -32602);
+        assert_eq!(error.message, "Invalid params");
+        assert!(error.data.is_none());
+    }
+
+    #[test]
+    fn test_create_success_response_format() {
+        let data = json!({"key": "value"});
+        let response = Server::create_success_response(data.clone(), Some(json!("test-id")));
+
+        assert_eq!(response.jsonrpc, "2.0");
+        assert!(response.result.is_some());
+        assert!(response.error.is_none());
+        assert_eq!(response.id, Some(json!("test-id")));
+        assert_eq!(response.result.unwrap(), data);
+    }
+
+    #[tokio::test]
+    async fn test_handle_initialize_valid_params() {
+        let server = create_test_server();
+
+        let request = JsonRpcRequest {
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "protocolVersion": "2024-11-05"
+            })),
+            id: Some(json!(1)),
+        };
+
+        let response = server.handle_initialize(&request).await.unwrap();
+        assert!(response.is_some());
+
+        let resp = response.unwrap();
+        assert!(resp.error.is_none());
+        assert!(resp.result.is_some());
+
+        let result = resp.result.unwrap();
+        assert_eq!(result["protocolVersion"], "2024-11-05");
+        assert_eq!(result["serverInfo"]["name"], "datadog-mcp-server");
+        assert!(result["capabilities"]["tools"].is_object());
+    }
+
+    #[tokio::test]
+    async fn test_handle_initialize_missing_params() {
+        let server = create_test_server();
+
+        let request = JsonRpcRequest {
+            method: "initialize".to_string(),
+            params: None,
+            id: Some(json!(1)),
+        };
+
+        let response = server.handle_initialize(&request).await.unwrap();
+        assert!(response.is_some());
+
+        let resp = response.unwrap();
+        assert!(resp.result.is_none());
+        assert!(resp.error.is_some());
+
+        let error = resp.error.unwrap();
+        assert_eq!(error.code, -32602);
+        assert!(error.message.contains("Missing params"));
+    }
+
+    #[tokio::test]
+    async fn test_handle_initialize_invalid_params() {
+        let server = create_test_server();
+
+        let request = JsonRpcRequest {
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "wrongField": "value"
+            })),
+            id: Some(json!(1)),
+        };
+
+        let response = server.handle_initialize(&request).await.unwrap();
+        assert!(response.is_some());
+
+        let resp = response.unwrap();
+        assert!(resp.result.is_none());
+        assert!(resp.error.is_some());
+
+        let error = resp.error.unwrap();
+        assert_eq!(error.code, -32602);
+        assert!(error.message.contains("Invalid params"));
+    }
+
+    #[tokio::test]
+    async fn test_handle_initialized_sets_state() {
+        let server = create_test_server();
+
+        {
+            let initialized = server.initialized.read().await;
+            assert!(!*initialized);
+        }
+
+        let request = JsonRpcRequest {
+            method: "initialized".to_string(),
+            params: None,
+            id: None,
+        };
+
+        let response = server.handle_initialized(&request).await.unwrap();
+        assert!(response.is_none());
+
+        {
+            let initialized = server.initialized.read().await;
+            assert!(*initialized);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_process_request_unknown_method() {
+        let server = create_test_server();
+
+        let request = JsonRpcRequest {
+            method: "unknown_method".to_string(),
+            params: None,
+            id: Some(json!(1)),
+        };
+
+        let response = server.process_request(request).await.unwrap();
+        assert!(response.is_some());
+
+        let resp = response.unwrap();
+        assert!(resp.error.is_some());
+
+        let error = resp.error.unwrap();
+        assert_eq!(error.code, -32601);
+        assert!(error.message.contains("Method not found"));
+        assert!(error.message.contains("unknown_method"));
+    }
+
+    #[tokio::test]
+    async fn test_process_request_prompts_list() {
+        let server = create_test_server();
+
+        let request = JsonRpcRequest {
+            method: "prompts/list".to_string(),
+            params: None,
+            id: Some(json!(1)),
+        };
+
+        let response = server.process_request(request).await.unwrap();
+        assert!(response.is_some());
+
+        let resp = response.unwrap();
+        assert!(resp.error.is_none());
+        assert!(resp.result.is_some());
+
+        let result = resp.result.unwrap();
+        assert!(result["prompts"].is_array());
+        assert_eq!(result["prompts"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_process_request_resources_list() {
+        let server = create_test_server();
+
+        let request = JsonRpcRequest {
+            method: "resources/list".to_string(),
+            params: None,
+            id: Some(json!(1)),
+        };
+
+        let response = server.process_request(request).await.unwrap();
+        assert!(response.is_some());
+
+        let resp = response.unwrap();
+        assert!(resp.error.is_none());
+        assert!(resp.result.is_some());
+
+        let result = resp.result.unwrap();
+        assert!(result["resources"].is_array());
+        assert_eq!(result["resources"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_process_request_shutdown() {
+        let server = create_test_server();
+
+        let request = JsonRpcRequest {
+            method: "shutdown".to_string(),
+            params: None,
+            id: Some(json!(1)),
+        };
+
+        let response = server.process_request(request).await.unwrap();
+        assert!(response.is_some());
+
+        let resp = response.unwrap();
+        assert!(resp.error.is_none());
+        assert!(resp.result.is_some());
+        assert_eq!(resp.result.unwrap(), json!({}));
+    }
+
+    #[tokio::test]
+    async fn test_process_request_exit_notification() {
+        let server = create_test_server();
+
+        let request = JsonRpcRequest {
+            method: "exit".to_string(),
+            params: None,
+            id: None,
+        };
+
+        let response = server.process_request(request).await.unwrap();
+        assert!(response.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_process_request_notifications_no_response() {
+        let server = create_test_server();
+
+        let notifications = vec!["notifications/cancelled", "notifications/progress"];
+
+        for method in notifications {
+            let request = JsonRpcRequest {
+                method: method.to_string(),
+                params: None,
+                id: None,
+            };
+
+            let response = server.process_request(request).await.unwrap();
+            assert!(
+                response.is_none(),
+                "Method {} should return no response",
+                method
+            );
+        }
+    }
+}
