@@ -1,12 +1,22 @@
 # MCP Datadog Server
 
-[![CI](https://github.com/junyeong-ai/mcp-datadog/actions/workflows/ci.yml/badge.svg)](https://github.com/junyeong-ai/mcp-datadog/actions/workflows/ci.yml)
+<!-- Dynamic status badges (real-time updates) -->
+[![CI](https://github.com/junyeong-ai/mcp-datadog/workflows/CI/badge.svg)](https://github.com/junyeong-ai/mcp-datadog/actions)
+[![Lint](https://github.com/junyeong-ai/mcp-datadog/workflows/Lint/badge.svg)](https://github.com/junyeong-ai/mcp-datadog/actions)
 [![codecov](https://codecov.io/gh/junyeong-ai/mcp-datadog/branch/main/graph/badge.svg?token=YOUR_TOKEN_HERE)](https://codecov.io/gh/junyeong-ai/mcp-datadog)
-[![Rust](https://img.shields.io/badge/rust-1.90%2B-orange.svg)](https://www.rust-lang.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![MCP](https://img.shields.io/badge/MCP-2024--11--05-green.svg)](https://modelcontextprotocol.io)
-[![Datadog](https://img.shields.io/badge/Datadog-API%20v1%2Fv2-632CA6.svg)](https://docs.datadoghq.com/api/)
-[![GitHub](https://img.shields.io/github/stars/junyeong-ai/mcp-datadog?style=social)](https://github.com/junyeong-ai/mcp-datadog)
+
+<!-- Technical stack badges (static) -->
+[![Rust](https://img.shields.io/badge/rust-1.90%2B%20(2024%20edition)-orange?style=flat-square&logo=rust)](https://www.rust-lang.org)
+[![MCP](https://img.shields.io/badge/MCP-2024--11--05-blue?style=flat-square)](https://modelcontextprotocol.io)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+
+<!-- Project information badges (semi-static) -->
+[![Version](https://img.shields.io/badge/version-0.1.0-blue?style=flat-square)](https://github.com/junyeong-ai/mcp-datadog/releases)
+[![Tools](https://img.shields.io/badge/MCP%20tools-13-blue?style=flat-square)](#features)
+[![Tests](https://img.shields.io/badge/tests-114+-success?style=flat-square)](#testing)
+
+<!-- Project-specific badges -->
+[![Datadog](https://img.shields.io/badge/Datadog-API%20v1%2Fv2-632CA6?style=flat-square)](https://docs.datadoghq.com/api/)
 
 A high-performance Model Context Protocol (MCP) server that provides AI agents with comprehensive access to Datadog's observability platform. Query metrics, search logs, analyze aggregations, monitor infrastructure, and manage dashboards through natural language with intelligent caching and optimized pagination.
 
