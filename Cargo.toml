@@ -22,7 +22,6 @@ serde_json = "1.0"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 
 # Error handling
-anyhow = "1.0"
 thiserror = "2.0"
 
 # Date/Time with natural language parsing
