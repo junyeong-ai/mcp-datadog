@@ -1,9 +1,9 @@
+use serde_json::{Value, json};
 use std::sync::Arc;
-use serde_json::{json, Value};
 
 use crate::datadog::DatadogClient;
 use crate::error::Result;
-use crate::handlers::common::{TimeHandler, TimeParams, ResponseFormatter};
+use crate::handlers::common::{ResponseFormatter, TimeHandler, TimeParams};
 
 pub struct MetricsHandler;
 
@@ -11,22 +11,22 @@ impl TimeHandler for MetricsHandler {}
 impl ResponseFormatter for MetricsHandler {}
 
 impl MetricsHandler {
-    pub async fn query(
-        client: Arc<DatadogClient>,
-        params: &Value,
-    ) -> Result<Value> {
+    pub async fn query(client: Arc<DatadogClient>, params: &Value) -> Result<Value> {
         let handler = MetricsHandler;
-        
-        let query = params["query"]
-            .as_str()
-            .ok_or_else(|| crate::error::DatadogError::InvalidInput("Missing 'query' parameter".to_string()))?;
-        
+
+        let query = params["query"].as_str().ok_or_else(|| {
+            crate::error::DatadogError::InvalidInput("Missing 'query' parameter".to_string())
+        })?;
+
         let time = handler.parse_time(params, 1)?; // v1 API
-        
-        let TimeParams::Timestamp { from: from_ts, to: to_ts } = time;
-        
+
+        let TimeParams::Timestamp {
+            from: from_ts,
+            to: to_ts,
+        } = time;
+
         let response = client.query_metrics(query, from_ts, to_ts).await?;
-        
+
         let series = response.series.iter().map(|s| {
             let points_data = if let Some(ref pointlist) = s.pointlist {
                 json!({
@@ -52,7 +52,7 @@ impl MetricsHandler {
                     "data": []
                 })
             };
-            
+
             json!({
                 "metric": s.metric,
                 "scope": s.scope,
@@ -62,7 +62,7 @@ impl MetricsHandler {
                 "interval": s.interval
             })
         }).collect::<Vec<_>>();
-        
+
         let meta = json!({
             "query": response.query,
             "status": response.status,
@@ -70,11 +70,7 @@ impl MetricsHandler {
             "to": crate::utils::format_timestamp(to_ts),
             "error": response.error
         });
-        
-        Ok(handler.format_list(
-            json!(series),
-            None,
-            Some(meta)
-        ))
+
+        Ok(handler.format_list(json!(series), None, Some(meta)))
     }
 }

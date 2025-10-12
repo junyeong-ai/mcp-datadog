@@ -1,6 +1,6 @@
-use chrono::{DateTime, Utc};
-use interim::{parse_date_string, Dialect};
 use crate::error::{DatadogError, Result};
+use chrono::{DateTime, Utc};
+use interim::{Dialect, parse_date_string};
 
 /// Parse a time expression into a Unix timestamp
 /// Supports:
@@ -30,7 +30,8 @@ pub fn parse_time(input: &str) -> Result<i64> {
     }
 
     Err(DatadogError::DateParseError(format!(
-        "Unable to parse time expression: '{}'", input
+        "Unable to parse time expression: '{}'",
+        input
     )))
 }
 
@@ -42,7 +43,6 @@ pub fn format_timestamp(timestamp: i64) -> String {
         format!("Invalid timestamp: {}", timestamp)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

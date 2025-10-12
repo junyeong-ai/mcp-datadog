@@ -1,9 +1,12 @@
-use serde_json::json;
+use super::protocol::{JsonRpcRequest, JsonRpcResponse, Server};
 use crate::error::Result;
-use super::protocol::{Server, JsonRpcRequest, JsonRpcResponse};
+use serde_json::json;
 
 impl Server {
-    pub async fn handle_tools_list(&self, request: &JsonRpcRequest) -> Result<Option<JsonRpcResponse>> {
+    pub async fn handle_tools_list(
+        &self,
+        request: &JsonRpcRequest,
+    ) -> Result<Option<JsonRpcResponse>> {
         // Check if initialized
         {
             let initialized = self.initialized.read().await;
@@ -11,7 +14,7 @@ impl Server {
                 let error_response = Self::create_error_response(
                     -32002,
                     "Server not initialized".to_string(),
-                    request.id.clone()
+                    request.id.clone(),
                 );
                 return Ok(Some(error_response));
             }

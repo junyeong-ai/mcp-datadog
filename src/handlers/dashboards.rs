@@ -1,5 +1,5 @@
+use serde_json::{Value, json};
 use std::sync::Arc;
-use serde_json::{json, Value};
 
 use crate::cache::DataCache;
 use crate::datadog::DatadogClient;
@@ -28,10 +28,12 @@ impl DashboardsHandler {
             cache.set_dashboards(cache_key, dashboards.clone()).await;
             dashboards
         } else {
-            cache.get_or_fetch_dashboards(&cache_key, || async {
-                let response = client.list_dashboards().await?;
-                Ok(response.dashboards)
-            }).await?
+            cache
+                .get_or_fetch_dashboards(&cache_key, || async {
+                    let response = client.list_dashboards().await?;
+                    Ok(response.dashboards)
+                })
+                .await?
         };
 
         let total_count = all_dashboards.len();
@@ -64,14 +66,11 @@ impl DashboardsHandler {
         Ok(handler.format_list(data, Some(pagination), None))
     }
 
-    pub async fn get(
-        client: Arc<DatadogClient>,
-        params: &Value,
-    ) -> Result<Value> {
+    pub async fn get(client: Arc<DatadogClient>, params: &Value) -> Result<Value> {
         let handler = DashboardsHandler;
-        let dashboard_id = params["dashboard_id"]
-            .as_str()
-            .ok_or_else(|| crate::error::DatadogError::InvalidInput("Missing 'dashboard_id' parameter".to_string()))?;
+        let dashboard_id = params["dashboard_id"].as_str().ok_or_else(|| {
+            crate::error::DatadogError::InvalidInput("Missing 'dashboard_id' parameter".to_string())
+        })?;
 
         let response = client.get_dashboard(dashboard_id).await?;
 

@@ -1,9 +1,9 @@
+use log::error;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::RwLock;
-use log::error;
 
 use crate::cache::DataCache;
 use crate::datadog::DatadogClient;
@@ -132,18 +132,18 @@ impl Server {
                 continue;
             }
 
-
             // Parse JSON-RPC request
             let request: JsonRpcRequest = match serde_json::from_str(line) {
                 Ok(req) => req,
                 Err(e) => {
                     // Send error response if we can extract an id
                     if let Ok(partial) = serde_json::from_str::<serde_json::Value>(line)
-                        && let Some(id) = partial.get("id") {
+                        && let Some(id) = partial.get("id")
+                    {
                         let mut error_response = Self::create_error_response(
                             -32700,
                             "Parse error".to_string(),
-                            Some(id.clone())
+                            Some(id.clone()),
                         );
                         // Add details for parse errors
                         if let Some(error) = &mut error_response.error {
@@ -159,7 +159,6 @@ impl Server {
                 }
             };
 
-
             // Process the request
             match self.process_request(request).await {
                 Ok(Some(response)) => {
@@ -171,10 +170,10 @@ impl Server {
                     // Try to write response, if it fails the client probably disconnected
                     if stdout.write_all(response_str.as_bytes()).await.is_err()
                         || stdout.write_all(b"\n").await.is_err()
-                        || stdout.flush().await.is_err() {
+                        || stdout.flush().await.is_err()
+                    {
                         break;
                     }
-
                 }
                 Ok(None) => {
                     // This was a notification, no response needed
@@ -182,11 +181,7 @@ impl Server {
                 Err(e) => {
                     error!("Request processing error: {}", e);
                     // Send error response
-                    let error_response = Self::create_error_response(
-                        -32603,
-                        e.to_string(),
-                        None
-                    );
+                    let error_response = Self::create_error_response(-32603, e.to_string(), None);
 
                     if let Ok(response_str) = serde_json::to_string(&error_response) {
                         let _ = stdout.write_all(response_str.as_bytes()).await;
@@ -197,11 +192,13 @@ impl Server {
             }
         }
 
-
         Ok(())
     }
 
-    pub async fn process_request(&self, request: JsonRpcRequest) -> Result<Option<JsonRpcResponse>> {
+    pub async fn process_request(
+        &self,
+        request: JsonRpcRequest,
+    ) -> Result<Option<JsonRpcResponse>> {
         match request.method.as_str() {
             "initialize" => self.handle_initialize(&request).await,
             "initialized" | "notifications/initialized" => self.handle_initialized(&request).await,
@@ -217,7 +214,7 @@ impl Server {
                     id: request.id,
                 };
                 Ok(Some(response))
-            },
+            }
             "resources/list" => {
                 let response = JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
@@ -228,7 +225,7 @@ impl Server {
                     id: request.id,
                 };
                 Ok(Some(response))
-            },
+            }
             "shutdown" => {
                 let response = JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
@@ -237,15 +234,15 @@ impl Server {
                     id: request.id,
                 };
                 Ok(Some(response))
-            },
+            }
             "exit" => {
                 // Exit is a notification, no response
                 Ok(None)
-            },
+            }
             "notifications/cancelled" | "notifications/progress" => {
                 // Notifications don't get responses
                 Ok(None)
-            },
+            }
             _ => {
                 let error = JsonRpcError {
                     code: -32601,
@@ -263,26 +260,26 @@ impl Server {
         }
     }
 
-    pub async fn handle_initialize(&self, request: &JsonRpcRequest) -> Result<Option<JsonRpcResponse>> {
-
+    pub async fn handle_initialize(
+        &self,
+        request: &JsonRpcRequest,
+    ) -> Result<Option<JsonRpcResponse>> {
         // Parse initialize params
         let params: InitializeRequest = match &request.params {
-            Some(p) => {
-                match serde_json::from_value(p.clone()) {
-                    Ok(params) => params,
-                    Err(e) => {
-                        let error_response = JsonRpcResponse {
-                            jsonrpc: "2.0".to_string(),
-                            result: None,
-                            error: Some(JsonRpcError {
-                                code: -32602,
-                                message: format!("Invalid params: {}", e),
-                                data: None,
-                            }),
-                            id: request.id.clone(),
-                        };
-                        return Ok(Some(error_response));
-                    }
+            Some(p) => match serde_json::from_value(p.clone()) {
+                Ok(params) => params,
+                Err(e) => {
+                    let error_response = JsonRpcResponse {
+                        jsonrpc: "2.0".to_string(),
+                        result: None,
+                        error: Some(JsonRpcError {
+                            code: -32602,
+                            message: format!("Invalid params: {}", e),
+                            data: None,
+                        }),
+                        id: request.id.clone(),
+                    };
+                    return Ok(Some(error_response));
                 }
             },
             None => {
@@ -300,10 +297,8 @@ impl Server {
             }
         };
 
-
         // Return the same protocol version the client requested
         let protocol_version = params.protocol_version.clone();
-
 
         let response = JsonRpcResponse {
             jsonrpc: "2.0".to_string(),
@@ -323,14 +318,15 @@ impl Server {
         Ok(Some(response))
     }
 
-    pub async fn handle_initialized(&self, _request: &JsonRpcRequest) -> Result<Option<JsonRpcResponse>> {
-
+    pub async fn handle_initialized(
+        &self,
+        _request: &JsonRpcRequest,
+    ) -> Result<Option<JsonRpcResponse>> {
         // Set initialized state
         {
             let mut initialized = self.initialized.write().await;
             *initialized = true;
         }
-
 
         // Notifications don't get responses
         Ok(None)

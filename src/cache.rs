@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use std::time::{Duration, Instant};
-use std::collections::HashMap;
 use serde::Serialize;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct CacheEntry<T> {
@@ -88,7 +88,8 @@ impl<T: Clone + Serialize> GenericCache<T> {
     }
 
     fn evict_lru(&self, cache: &mut HashMap<String, CacheEntry<T>>) {
-        if let Some(lru_key) = cache.iter()
+        if let Some(lru_key) = cache
+            .iter()
             .min_by_key(|(_, entry)| entry.last_accessed)
             .map(|(key, _)| key.clone())
         {
@@ -137,7 +138,11 @@ impl DataCache {
         self.dashboards.set(key, data).await
     }
 
-    pub async fn get_or_fetch_dashboards<F, Fut>(&self, key: &str, fetch: F) -> crate::error::Result<Vec<DashboardSummary>>
+    pub async fn get_or_fetch_dashboards<F, Fut>(
+        &self,
+        key: &str,
+        fetch: F,
+    ) -> crate::error::Result<Vec<DashboardSummary>>
     where
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = crate::error::Result<Vec<DashboardSummary>>>,
@@ -149,7 +154,11 @@ impl DataCache {
         self.monitors.set(key, data).await
     }
 
-    pub async fn get_or_fetch_monitors<F, Fut>(&self, key: &str, fetch: F) -> crate::error::Result<Vec<Monitor>>
+    pub async fn get_or_fetch_monitors<F, Fut>(
+        &self,
+        key: &str,
+        fetch: F,
+    ) -> crate::error::Result<Vec<Monitor>>
     where
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = crate::error::Result<Vec<Monitor>>>,
@@ -161,7 +170,11 @@ impl DataCache {
         self.events.set(key, data).await
     }
 
-    pub async fn get_or_fetch_events<F, Fut>(&self, key: &str, fetch: F) -> crate::error::Result<Vec<Event>>
+    pub async fn get_or_fetch_events<F, Fut>(
+        &self,
+        key: &str,
+        fetch: F,
+    ) -> crate::error::Result<Vec<Event>>
     where
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = crate::error::Result<Vec<Event>>>,
@@ -179,8 +192,8 @@ impl DataCache {
 }
 
 pub fn create_cache_key<T: Serialize>(endpoint: &str, params: &T) -> String {
-    use std::hash::{Hash, Hasher};
     use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
 
     let params_json = serde_json::to_string(params).unwrap_or_default();
     let mut hasher = DefaultHasher::new();

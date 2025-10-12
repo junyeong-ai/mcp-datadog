@@ -1,11 +1,11 @@
 use reqwest::{Client, Response, StatusCode};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::time::Duration;
 
-use crate::error::{DatadogError, Result};
 use super::models::*;
 use super::retry;
+use crate::error::{DatadogError, Result};
 
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
@@ -42,10 +42,11 @@ impl DatadogClient {
         body: Option<impl Serialize>,
     ) -> Result<T> {
         let url = format!("{}{}", self.base_url, endpoint);
-        
+
         let mut retries = 0;
         loop {
-            let mut request = self.client
+            let mut request = self
+                .client
                 .request(method.clone(), &url)
                 .header("DD-API-KEY", &self.api_key)
                 .header("DD-APPLICATION-KEY", &self.app_key)
@@ -81,38 +82,35 @@ impl DatadogClient {
 
     async fn handle_response<T: DeserializeOwned>(&self, response: Response) -> Result<T> {
         let status = response.status();
-        
+
         if status.is_success() {
-            response.json::<T>().await
+            response
+                .json::<T>()
+                .await
                 .map_err(DatadogError::NetworkError)
         } else {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-            
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+
             match status {
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     Err(DatadogError::AuthError(error_text))
                 }
-                StatusCode::TOO_MANY_REQUESTS => {
-                    Err(DatadogError::RateLimitError)
-                }
-                StatusCode::REQUEST_TIMEOUT => {
-                    Err(DatadogError::TimeoutError)
-                }
-                _ => {
-                    Err(DatadogError::ApiError(format!("HTTP {}: {}", status, error_text)))
-                }
+                StatusCode::TOO_MANY_REQUESTS => Err(DatadogError::RateLimitError),
+                StatusCode::REQUEST_TIMEOUT => Err(DatadogError::TimeoutError),
+                _ => Err(DatadogError::ApiError(format!(
+                    "HTTP {}: {}",
+                    status, error_text
+                ))),
             }
         }
     }
 
     // ============= Metrics API =============
 
-    pub async fn query_metrics(
-        &self,
-        query: &str,
-        from: i64,
-        to: i64,
-    ) -> Result<MetricsResponse> {
+    pub async fn query_metrics(&self, query: &str, from: i64, to: i64) -> Result<MetricsResponse> {
         let params = vec![
             ("query", query.to_string()),
             ("from", from.to_string()),
@@ -124,7 +122,8 @@ impl DatadogClient {
             "/api/v1/query",
             Some(params),
             None::<()>,
-        ).await
+        )
+        .await
     }
 
     // ============= Logs API =============
@@ -153,7 +152,8 @@ impl DatadogClient {
             "/api/v2/logs/events/search",
             None,
             Some(body),
-        ).await
+        )
+        .await
     }
 
     // ============= Monitors API =============
@@ -166,7 +166,7 @@ impl DatadogClient {
         page_size: Option<i32>,
     ) -> Result<Vec<Monitor>> {
         let mut params = vec![];
-        
+
         if let Some(t) = tags {
             params.push(("tags", t));
         }
@@ -183,20 +183,21 @@ impl DatadogClient {
         self.request(
             reqwest::Method::GET,
             "/api/v1/monitor",
-            if params.is_empty() { None } else { Some(params) },
+            if params.is_empty() {
+                None
+            } else {
+                Some(params)
+            },
             None::<()>,
-        ).await
+        )
+        .await
     }
 
     pub async fn get_monitor(&self, monitor_id: i64) -> Result<Monitor> {
         let endpoint = format!("/api/v1/monitor/{}", monitor_id);
-        
-        self.request(
-            reqwest::Method::GET,
-            &endpoint,
-            None,
-            None::<()>,
-        ).await
+
+        self.request(reqwest::Method::GET, &endpoint, None, None::<()>)
+            .await
     }
 
     // ============= Events API =============
@@ -209,10 +210,7 @@ impl DatadogClient {
         sources: Option<String>,
         tags: Option<String>,
     ) -> Result<EventsResponse> {
-        let mut params = vec![
-            ("start", start.to_string()),
-            ("end", end.to_string()),
-        ];
+        let mut params = vec![("start", start.to_string()), ("end", end.to_string())];
 
         if let Some(p) = priority {
             params.push(("priority", p));
@@ -229,7 +227,8 @@ impl DatadogClient {
             "/api/v1/events",
             Some(params),
             None::<()>,
-        ).await
+        )
+        .await
     }
 
     // ============= Infrastructure/Hosts API =============
@@ -267,9 +266,14 @@ impl DatadogClient {
         self.request(
             reqwest::Method::GET,
             "/api/v1/hosts",
-            if params.is_empty() { None } else { Some(params) },
+            if params.is_empty() {
+                None
+            } else {
+                Some(params)
+            },
             None::<()>,
-        ).await
+        )
+        .await
     }
 
     // ============= Dashboard API Methods =============
@@ -281,7 +285,8 @@ impl DatadogClient {
             "/api/v1/dashboard",
             None::<Vec<(&str, String)>>,
             None::<()>,
-        ).await
+        )
+        .await
     }
 
     /// Get a specific dashboard by ID
@@ -292,7 +297,8 @@ impl DatadogClient {
             &url,
             None::<Vec<(&str, String)>>,
             None::<()>,
-        ).await
+        )
+        .await
     }
 
     // ============= APM Spans API Methods =============
@@ -313,7 +319,7 @@ impl DatadogClient {
             ("filter[to]", to.to_string()),
             ("page[limit]", limit.unwrap_or(10).to_string()),
         ];
-        
+
         // Add optional parameters
         if let Some(cursor_val) = cursor {
             params.push(("page[cursor]", cursor_val));
@@ -327,7 +333,8 @@ impl DatadogClient {
             "/api/v2/spans/events",
             Some(params),
             None::<()>,
-        ).await
+        )
+        .await
     }
 
     // ============= Service Catalog API Methods =============
@@ -340,16 +347,16 @@ impl DatadogClient {
         filter_env: Option<String>,
     ) -> Result<ServicesResponse> {
         let mut params = vec![];
-        
+
         // Use Datadog's pagination format for v2 API
         if let Some(size) = page_size {
             params.push(("page[size]", size.to_string()));
         }
-        
+
         if let Some(number) = page_number {
             params.push(("page[number]", number.to_string()));
         }
-        
+
         if let Some(env) = filter_env {
             params.push(("filter[env]", env));
         }
@@ -357,9 +364,14 @@ impl DatadogClient {
         self.request(
             reqwest::Method::GET,
             "/api/v2/services/definitions",
-            if params.is_empty() { None } else { Some(params) },
+            if params.is_empty() {
+                None
+            } else {
+                Some(params)
+            },
             None::<()>,
-        ).await
+        )
+        .await
     }
 
     // ============= Logs Analytics API Methods =============
@@ -395,13 +407,17 @@ impl DatadogClient {
         }
 
         // Debug: log request body
-        log::debug!("Logs aggregate request body: {}", serde_json::to_string_pretty(&body).unwrap_or_default());
+        log::debug!(
+            "Logs aggregate request body: {}",
+            serde_json::to_string_pretty(&body).unwrap_or_default()
+        );
 
         self.request(
             reqwest::Method::POST,
             "/api/v2/logs/analytics/aggregate",
             None,
             Some(body),
-        ).await
+        )
+        .await
     }
 }
