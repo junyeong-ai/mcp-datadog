@@ -49,9 +49,58 @@ impl SpansHandler {
             .list_spans(&query, &from, &to, limit, cursor, sort)
             .await?;
 
-        let data = response["data"].as_array().unwrap_or(&vec![]).clone();
-        let spans_count = data.len();
+        // Get tag filter (same pattern as logs)
+        let tag_filter = params["tag_filter"]
+            .as_str()
+            .or_else(|| client.get_tag_filter())
+            .unwrap_or("*");
 
+        // Process spans with tag filtering
+        let data = response["data"]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .map(|span| {
+                let mut span_obj = span.as_object().unwrap().clone();
+
+                // Apply tag filtering to attributes.tags
+                if let Some(attrs) = span_obj.get_mut("attributes") {
+                    if let Some(attrs_obj) = attrs.as_object_mut() {
+                        if let Some(tags) = attrs_obj.get("tags") {
+                            if let Some(tags_arr) = tags.as_array() {
+                                let filtered_tags = match tag_filter {
+                                    "*" => tags_arr.clone(),
+                                    "" => vec![],
+                                    filter => {
+                                        let prefixes: Vec<&str> =
+                                            filter.split(',').map(str::trim).collect();
+                                        tags_arr
+                                            .iter()
+                                            .filter(|tag| {
+                                                if let Some(tag_str) = tag.as_str() {
+                                                    prefixes
+                                                        .iter()
+                                                        .any(|p| tag_str.starts_with(p))
+                                                } else {
+                                                    false
+                                                }
+                                            })
+                                            .cloned()
+                                            .collect()
+                                    }
+                                };
+                                attrs_obj
+                                    .insert("tags".to_string(), Value::Array(filtered_tags));
+                            }
+                        }
+                    }
+                }
+
+                Value::Object(span_obj)
+            })
+            .collect::<Vec<_>>();
+
+        let spans_count = data.len();
         let pagination = handler.format_pagination(page, page_size, spans_count);
 
         let meta = json!({

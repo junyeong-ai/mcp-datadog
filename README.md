@@ -91,13 +91,15 @@ Query time series metrics from Datadog.
 - `query` (required): Metrics query string (e.g., "avg:system.cpu.user{*}")
 - `from` (optional): Start time - defaults to "1 hour ago"
 - `to` (optional): End time - defaults to "now"
+- `max_points` (optional): Maximum data points to return (API applies rollup aggregation)
 
 **Example:**
 ```json
 {
   "query": "avg:system.cpu.user{host:production-*}",
-  "from": "2 hours ago",
-  "to": "now"
+  "from": "24 hours ago",
+  "to": "now",
+  "max_points": 50
 }
 ```
 
@@ -111,6 +113,7 @@ List infrastructure hosts with filtering and pagination.
 - `sort_dir` (optional): Sort direction ("asc" or "desc")
 - `start` (optional): Starting index - defaults to 0
 - `count` (optional): Number of hosts (max 1000) - defaults to 100
+- `tag_filter` (optional): Tag filtering (same as logs)
 
 ### Logs & Analytics
 
@@ -254,11 +257,12 @@ Search APM spans with advanced filtering.
 
 **Parameters:**
 - `query` (optional): Search query - defaults to "*"
-- `from` (optional): Start time - defaults to "1 hour ago"
-- `to` (optional): End time - defaults to "now"
+- `from` (required): Start time
+- `to` (required): End time
 - `limit` (optional): Maximum spans to return - defaults to 10
 - `cursor` (optional): Pagination cursor
 - `sort` (optional): Sort order
+- `tag_filter` (optional): Tag filtering (same as logs)
 
 #### datadog_services_list
 List services from the Datadog service catalog.

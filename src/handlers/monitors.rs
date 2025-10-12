@@ -89,13 +89,25 @@ impl MonitorsHandler {
             "modified": response.modified,
             "overall_state": response.overall_state,
             "priority": response.priority,
-            "options": response.options.as_ref().map(|o| json!({
-                "thresholds": o.thresholds,
-                "notify_no_data": o.notify_no_data,
-                "notify_audit": o.notify_audit,
-                "timeout_h": o.timeout_h,
-                "silenced": o.silenced
-            }))
+            "options": response.options.as_ref().map(|o| {
+                let mut opts = json!({
+                    "thresholds": o.thresholds,
+                    "notify_no_data": o.notify_no_data,
+                    "notify_audit": o.notify_audit,
+                    "timeout_h": o.timeout_h
+                });
+
+                // Only include silenced if it has entries
+                if let Some(ref silenced) = o.silenced {
+                    if let Some(obj) = silenced.as_object() {
+                        if !obj.is_empty() {
+                            opts["silenced"] = json!(silenced);
+                        }
+                    }
+                }
+
+                opts
+            })
         });
 
         Ok(handler.format_detail(data))

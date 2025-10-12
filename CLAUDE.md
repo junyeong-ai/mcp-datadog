@@ -146,6 +146,65 @@ if page == 0 || force_refresh {
 }
 ```
 
+### Tag Filtering System
+
+Unified tag filtering across logs, spans, and hosts to reduce response sizes.
+
+**Three Filter Modes**:
+1. `"*"` (default) - Return all tags
+2. `""` (empty) - Return no tags
+3. `"env:,service:"` - Return only tags with matching prefixes (comma-separated)
+
+**Priority Chain**:
+```rust
+let tag_filter = params["tag_filter"]           // 1. Request parameter
+    .as_str()
+    .or_else(|| client.get_tag_filter())        // 2. DD_TAG_FILTER env var
+    .unwrap_or("*");                            // 3. Default (all tags)
+```
+
+**Implementation Pattern**:
+```rust
+let tag_filter = params["tag_filter"]
+    .as_str()
+    .or_else(|| client.get_tag_filter())
+    .unwrap_or("*");
+
+let filtered_tags = match tag_filter {
+    "*" => tags.clone(),
+    "" => vec![],
+    filter => {
+        let prefixes: Vec<&str> = filter.split(',').map(str::trim).collect();
+        tags.iter()
+            .filter(|tag| prefixes.iter().any(|p| tag.starts_with(p)))
+            .cloned()
+            .collect()
+    }
+};
+```
+
+**Supported Tools**:
+- `datadog_logs_search` - Filters tags array
+- `datadog_spans_search` - Filters attributes.tags array
+- `datadog_hosts_list` - Filters tags_by_source map
+
+**Environment Variable**:
+```bash
+DD_TAG_FILTER="env:,service:,kube_namespace:"  # Global default
+```
+
+**Usage Example**:
+```json
+{
+  "name": "datadog_spans_search",
+  "arguments": {
+    "from": "1 hour ago",
+    "to": "now",
+    "tag_filter": "env:,service:"
+  }
+}
+```
+
 ## Development Patterns
 
 ### Adding New Tools
@@ -518,7 +577,13 @@ DD_APP_KEY=your_datadog_app_key       # Required for API access
 ```bash
 DD_SITE=datadoghq.com                 # Default site, supports all regions
 LOG_LEVEL=warn                        # Logging level (trace/debug/info/warn/error)
+DD_TAG_FILTER="env:,service:"         # Global tag filter (comma-separated prefixes)
 ```
+
+**Tag Filter Options**:
+- `"*"` or unset - Include all tags (default)
+- `""` - Exclude all tags
+- `"env:,service:,kube_namespace:"` - Include only matching prefixes
 
 ### Runtime Configuration
 - **Timeout**: 30 seconds per API request

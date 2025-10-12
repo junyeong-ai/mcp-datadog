@@ -32,7 +32,39 @@ impl HostsHandler {
             .list_hosts(filter, from, sort_field, sort_dir, start, count)
             .await?;
 
+        // Get tag filter (same pattern as logs/spans)
+        let tag_filter = params["tag_filter"]
+            .as_str()
+            .or_else(|| client.get_tag_filter())
+            .unwrap_or("*");
+
         let data = json!(response.host_list.iter().map(|host| {
+            // Apply tag filtering to tags_by_source
+            let filtered_tags_by_source = match tag_filter {
+                "*" => host.tags_by_source.clone(),
+                "" => None,
+                filter => {
+                    host.tags_by_source.as_ref().map(|tags_map| {
+                        let prefixes: Vec<&str> = filter.split(',').map(str::trim).collect();
+                        let mut filtered_map = std::collections::HashMap::new();
+
+                        for (source, tags) in tags_map.iter() {
+                            let filtered_tags: Vec<String> = tags
+                                .iter()
+                                .filter(|tag| prefixes.iter().any(|p| tag.starts_with(p)))
+                                .cloned()
+                                .collect();
+
+                            if !filtered_tags.is_empty() {
+                                filtered_map.insert(source.clone(), filtered_tags);
+                            }
+                        }
+
+                        filtered_map
+                    })
+                }
+            };
+
             json!({
                 "name": host.name,
                 "host_name": host.host_name,
@@ -42,7 +74,7 @@ impl HostsHandler {
                 "aws_name": host.aws_name,
                 "apps": host.apps,
                 "sources": host.sources,
-                "tags": host.tags_by_source
+                "tags": filtered_tags_by_source
             })
         }).collect::<Vec<_>>());
 

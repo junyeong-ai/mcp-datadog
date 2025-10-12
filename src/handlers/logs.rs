@@ -81,8 +81,7 @@ impl LogsHandler {
                     "host": attrs.and_then(|a| a.host.clone()),
                     "service": attrs.and_then(|a| a.service.clone()),
                     "tags": tags,
-                    "status": attrs.and_then(|a| a.status.clone()),
-                    "attributes": attrs.and_then(|a| a.attributes.clone())
+                    "status": attrs.and_then(|a| a.status.clone())
                 })
             })
             .collect::<Vec<_>>();

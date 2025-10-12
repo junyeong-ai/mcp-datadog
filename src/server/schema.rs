@@ -200,6 +200,10 @@ impl Server {
                                 "type": "integer",
                                 "description": "Number of hosts to return (max 1000)",
                                 "default": 100
+                            },
+                            "tag_filter": {
+                                "type": "string",
+                                "description": &tag_filter_desc
                             }
                         }
                     }
@@ -278,6 +282,10 @@ impl Server {
                                 "type": "integer",
                                 "description": "Number of spans per page",
                                 "default": 10
+                            },
+                            "tag_filter": {
+                                "type": "string",
+                                "description": &tag_filter_desc
                             }
                         },
                         "required": ["from", "to"]
