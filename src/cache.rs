@@ -52,10 +52,9 @@ impl<T: Clone + Serialize> GenericCache<T> {
         if let Some(entry) = cache.get_mut(key) {
             if entry.age() < self.ttl {
                 return Some(entry.access());
-            } else {
-                cache.remove(key);
-                log::debug!("Cache expired: {}", key);
             }
+            cache.remove(key);
+            log::debug!("Cache expired: {}", key);
         }
         None
     }

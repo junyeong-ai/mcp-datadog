@@ -52,7 +52,7 @@ mod tests {
     fn test_parse_time_unix() {
         let result = parse_time("1704067200");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 1704067200);
+        assert_eq!(result.unwrap(), 1_704_067_200);
     }
 
     #[test]
@@ -73,7 +73,7 @@ mod tests {
     fn test_parse_time_iso8601() {
         let result = parse_time("2024-01-01T00:00:00Z");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 1704067200);
+        assert_eq!(result.unwrap(), 1_704_067_200);
     }
 
     #[test]
@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_format_timestamp_valid() {
-        let formatted = format_timestamp(1704067200);
+        let formatted = format_timestamp(1_704_067_200);
         assert!(formatted.contains("2024-01-01"));
         assert!(formatted.contains("UTC"));
     }
