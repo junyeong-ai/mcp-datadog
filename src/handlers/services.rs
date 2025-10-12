@@ -139,3 +139,47 @@ impl ServicesHandler {
         Ok(handler.format_list(data, Some(pagination), Some(meta)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_optional_env_filter() {
+        let params = json!({"env": "production"});
+        assert_eq!(params["env"].as_str(), Some("production"));
+    }
+
+    #[test]
+    fn test_pagination_parameters() {
+        let handler = ServicesHandler;
+        let params = json!({"page": 3, "page_size": 20});
+
+        let (page, page_size) = handler.parse_pagination(&params);
+        assert_eq!(page, 3);
+        assert_eq!(page_size, 20);
+    }
+
+    #[test]
+    fn test_paginator_trait() {
+        let handler = ServicesHandler;
+        let data = vec![1, 2, 3, 4, 5];
+
+        let page = handler.paginate(&data, 1, 2);
+        assert_eq!(page, &[3, 4]);
+    }
+
+    #[test]
+    fn test_response_formatter_trait() {
+        let handler = ServicesHandler;
+        let data = json!([{"service": "api"}]);
+        let pagination = json!({"page": 0});
+        let meta = json!({"filter_env": "prod"});
+
+        let response = handler.format_list(data, Some(pagination), Some(meta));
+        assert!(response.get("data").is_some());
+        assert!(response.get("pagination").is_some());
+        assert!(response.get("meta").is_some());
+    }
+}

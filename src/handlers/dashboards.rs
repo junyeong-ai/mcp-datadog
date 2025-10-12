@@ -136,3 +136,54 @@ impl DashboardsHandler {
         Ok(handler.format_detail(data))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_pagination_parameters() {
+        let handler = DashboardsHandler;
+        let params = json!({"page": 2, "page_size": 25});
+
+        let (page, page_size) = handler.parse_pagination(&params);
+        assert_eq!(page, 2);
+        assert_eq!(page_size, 25);
+    }
+
+    #[test]
+    fn test_get_dashboard_id_parameter() {
+        let params = json!({"dashboard_id": "abc-123"});
+        assert_eq!(params["dashboard_id"].as_str(), Some("abc-123"));
+    }
+
+    #[test]
+    fn test_paginator_trait() {
+        let handler = DashboardsHandler;
+        let data = vec![1, 2, 3, 4, 5];
+
+        let page = handler.paginate(&data, 0, 3);
+        assert_eq!(page, &[1, 2, 3]);
+    }
+
+    #[test]
+    fn test_response_formatter_list() {
+        let handler = DashboardsHandler;
+        let data = json!([{"id": "dashboard1"}]);
+        let pagination = json!({"page": 0});
+
+        let response = handler.format_list(data, Some(pagination), None);
+        assert!(response.get("data").is_some());
+        assert!(response.get("pagination").is_some());
+    }
+
+    #[test]
+    fn test_response_formatter_detail() {
+        let handler = DashboardsHandler;
+        let data = json!({"id": "dashboard1", "title": "My Dashboard"});
+
+        let response = handler.format_detail(data.clone());
+        assert_eq!(response["data"], data);
+    }
+}

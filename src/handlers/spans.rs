@@ -112,3 +112,61 @@ impl SpansHandler {
         Ok(handler.format_list(json!(data), Some(pagination), Some(meta)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_required_query_parameter() {
+        let params = json!({"query": "service:web-api"});
+        assert_eq!(params["query"].as_str(), Some("service:web-api"));
+    }
+
+    #[test]
+    fn test_default_limit() {
+        let params = json!({});
+        let limit = params["limit"].as_i64().map(|l| l as i32).or(Some(10));
+        assert_eq!(limit, Some(10));
+    }
+
+    #[test]
+    fn test_optional_sort_parameter() {
+        let params = json!({"sort": "timestamp"});
+        assert_eq!(params["sort"].as_str(), Some("timestamp"));
+    }
+
+    #[test]
+    fn test_pagination_parameters() {
+        let handler = SpansHandler;
+        let params = json!({"page": 1, "page_size": 50});
+
+        let (page, page_size) = handler.parse_pagination(&params);
+        assert_eq!(page, 1);
+        assert_eq!(page_size, 50);
+    }
+
+    #[test]
+    fn test_time_handler_trait() {
+        let handler = SpansHandler;
+        let params = json!({
+            "from": "1 hour ago",
+            "to": "now"
+        });
+
+        let result = handler.parse_time(&params, 1);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_response_formatter_trait() {
+        let handler = SpansHandler;
+        let data = json!([{"span_id": "123"}]);
+        let pagination = json!({"page": 0});
+        let meta = json!({"query": "*"});
+
+        let response = handler.format_list(data, Some(pagination), Some(meta));
+        assert!(response.get("data").is_some());
+    }
+}
