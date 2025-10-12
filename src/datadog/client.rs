@@ -39,6 +39,7 @@ impl DatadogClient {
         })
     }
 
+
     pub fn get_tag_filter(&self) -> Option<&str> {
         self.tag_filter.as_deref()
     }
@@ -430,3 +431,102 @@ impl DatadogClient {
         .await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_client_new_with_default_site() {
+        let client = DatadogClient::new(
+            "test_api_key".to_string(),
+            "test_app_key".to_string(),
+            None,
+        );
+
+        assert!(client.is_ok());
+        let client = client.unwrap();
+        assert_eq!(client.base_url, "https://api.datadoghq.com");
+        assert_eq!(client.api_key, "test_api_key");
+        assert_eq!(client.app_key, "test_app_key");
+    }
+
+    #[tokio::test]
+    async fn test_client_new_with_custom_site() {
+        let client = DatadogClient::new(
+            "test_api_key".to_string(),
+            "test_app_key".to_string(),
+            Some("datadoghq.eu".to_string()),
+        );
+
+        assert!(client.is_ok());
+        let client = client.unwrap();
+        assert_eq!(client.base_url, "https://api.datadoghq.eu");
+    }
+
+    #[test]
+    fn test_client_regional_urls() {
+        let regions = vec![
+            ("datadoghq.com", "https://api.datadoghq.com"),
+            ("datadoghq.eu", "https://api.datadoghq.eu"),
+            ("us3.datadoghq.com", "https://api.us3.datadoghq.com"),
+            ("us5.datadoghq.com", "https://api.us5.datadoghq.com"),
+        ];
+
+        for (region, expected_url) in regions {
+            let client = DatadogClient::new(
+                "key".to_string(),
+                "app".to_string(),
+                Some(region.to_string()),
+            ).unwrap();
+
+            assert_eq!(client.base_url, expected_url);
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_tag_filter_from_env() {
+        unsafe {
+            std::env::remove_var("DD_TAG_FILTER");
+            std::env::set_var("DD_TAG_FILTER", "env:,service:");
+        }
+
+        let client = DatadogClient::new(
+            "key".to_string(),
+            "app".to_string(),
+            None,
+        ).unwrap();
+
+        let filter = client.get_tag_filter();
+
+        unsafe {
+            std::env::remove_var("DD_TAG_FILTER");
+        }
+
+        assert_eq!(filter, Some("env:,service:"));
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_no_tag_filter() {
+        unsafe {
+            std::env::remove_var("DD_TAG_FILTER");
+        }
+
+        let client = DatadogClient::new(
+            "key".to_string(),
+            "app".to_string(),
+            None,
+        ).unwrap();
+
+        let filter = client.get_tag_filter();
+
+        unsafe {
+            std::env::remove_var("DD_TAG_FILTER");
+        }
+
+        assert_eq!(filter, None);
+    }
+}
+
