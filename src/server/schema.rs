@@ -20,6 +20,13 @@ impl Server {
             }
         }
 
+        // Get tag filter default from environment variable
+        let tag_filter_default = self.client.get_tag_filter().unwrap_or("*");
+        let tag_filter_desc = format!(
+            "Comma-separated tag prefixes to include (e.g., 'env:,service:,version:'). Use '*' for all tags (default), '' (empty) to exclude all tags. Current default: '{}'",
+            tag_filter_default
+        );
+
         let tools_result = json!({
             "tools": [
                 {
@@ -70,6 +77,10 @@ impl Server {
                                 "type": "integer",
                                 "description": "Maximum number of logs to return",
                                 "default": 10
+                            },
+                            "tag_filter": {
+                                "type": "string",
+                                "description": &tag_filter_desc
                             }
                         },
                         "required": ["query"]

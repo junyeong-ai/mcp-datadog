@@ -51,6 +51,7 @@ Create a `.env` file in the project root:
 DD_API_KEY=your_api_key_here
 DD_APP_KEY=your_app_key_here
 DD_SITE=datadoghq.com  # Optional: datadoghq.eu, us3.datadoghq.com, us5.datadoghq.com
+DD_TAG_FILTER=env:,service:,version:,host:  # Optional: Default tag filter for logs (comma-separated prefixes)
 LOG_LEVEL=warn  # Optional: trace, debug, info, warn, error (default: warn)
 ```
 
@@ -71,6 +72,7 @@ Add the server to your Claude Desktop configuration:
         "DD_API_KEY": "your_api_key_here",
         "DD_APP_KEY": "your_app_key_here",
         "DD_SITE": "datadoghq.com",
+        "DD_TAG_FILTER": "env:,service:,version:,host:",
         "LOG_LEVEL": "warn"
       }
     }
@@ -120,13 +122,44 @@ Search through Datadog logs with powerful filtering.
 - `from` (optional): Start time - defaults to "1 hour ago"
 - `to` (optional): End time - defaults to "now"
 - `limit` (optional): Maximum number of logs - defaults to 10
+- `tag_filter` (optional): Tag filtering control with explicit keywords:
+  - `"*"` - Return all tags (no filtering)
+  - `""` - Exclude all tags (empty response)
+  - `"env:,service:,..."` - Include only tags with specified prefixes
+  - Default determined by `DD_TAG_FILTER` env var, or `"*"` if not set
 
-**Example:**
+**Examples:**
 ```json
 {
   "query": "status:error service:payment-api",
   "from": "30 minutes ago",
   "limit": 20
+}
+```
+
+**Tag Filtering Examples:**
+```json
+// Return all tags explicitly
+{
+  "query": "*",
+  "tag_filter": "*"
+}
+
+// Exclude all tags
+{
+  "query": "*",
+  "tag_filter": ""
+}
+
+// Filter to specific tag prefixes
+{
+  "query": "*",
+  "tag_filter": "env:,service:,version:"
+}
+
+// Use environment variable default (omit tag_filter)
+{
+  "query": "*"
 }
 ```
 

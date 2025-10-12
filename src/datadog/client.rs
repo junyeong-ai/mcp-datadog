@@ -14,6 +14,7 @@ pub struct DatadogClient {
     api_key: String,
     app_key: String,
     base_url: String,
+    tag_filter: Option<String>,
 }
 
 impl DatadogClient {
@@ -26,12 +27,20 @@ impl DatadogClient {
             .build()
             .map_err(DatadogError::NetworkError)?;
 
+        // Load tag filter from environment variable
+        let tag_filter = std::env::var("DD_TAG_FILTER").ok();
+
         Ok(Self {
             client,
             api_key,
             app_key,
             base_url,
+            tag_filter,
         })
+    }
+
+    pub fn get_tag_filter(&self) -> Option<&str> {
+        self.tag_filter.as_deref()
     }
 
     async fn request<T: DeserializeOwned>(
