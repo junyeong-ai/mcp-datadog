@@ -1,5 +1,7 @@
 # MCP Datadog Server
 
+[![CI](https://github.com/junyeong-ai/mcp-datadog/actions/workflows/ci.yml/badge.svg)](https://github.com/junyeong-ai/mcp-datadog/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/junyeong-ai/mcp-datadog/branch/main/graph/badge.svg?token=YOUR_TOKEN_HERE)](https://codecov.io/gh/junyeong-ai/mcp-datadog)
 [![Rust](https://img.shields.io/badge/rust-1.90%2B-orange.svg)](https://www.rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-2024--11--05-green.svg)](https://modelcontextprotocol.io)
@@ -358,8 +360,19 @@ LOG_LEVEL=info cargo run
 ### Testing
 
 ```bash
-# Build and run tests
+# Run all tests
 cargo test
+
+# Run tests with coverage
+cargo install cargo-llvm-cov
+cargo llvm-cov --all-features --lcov --output-path lcov.info
+
+# Run specific test modules
+cargo test --lib cache::tests
+cargo test --lib handlers::metrics::tests
+
+# Run with verbose output
+cargo test -- --nocapture
 
 # Test MCP protocol compliance
 echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05"},"id":0}' | cargo run
@@ -367,6 +380,13 @@ echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-1
 # Test tool listing
 echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | cargo run
 ```
+
+**Test Coverage**: The project maintains 114+ unit tests covering:
+- Core modules (cache, error, utils)
+- All API handlers (metrics, logs, monitors, events, hosts, dashboards, spans, services)
+- Datadog client initialization and configuration
+- Time parsing (natural language, ISO8601, Unix timestamps)
+- Trait implementations (TimeHandler, Paginator, ResponseFormatter)
 
 ### Building for Production
 
@@ -464,10 +484,13 @@ We welcome contributions! Please:
 
 ### Development Guidelines
 - Follow Rust formatting: `cargo fmt`
-- Check for issues: `cargo clippy`
+- Check for issues: `cargo clippy -- -D warnings`
+- Run all tests: `cargo test`
+- Check test coverage: `cargo llvm-cov --all-features`
 - Maintain API compatibility
-- Add tests for new features
+- Add tests for new features (unit tests required)
 - Update documentation as needed
+- Zero warnings policy enforced in CI
 
 ## License
 
