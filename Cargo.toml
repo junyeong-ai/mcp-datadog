@@ -33,6 +33,26 @@ dotenvy = "0.15"
 env_logger = "0.11"
 log = "0.4"
 
+[dev-dependencies]
+# Modern async HTTP mocking (2024 trending)
+wiremock = "0.6"
+
+# Performance benchmarking with statistical analysis
+criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
+
+# Additional tokio testing utilities
+tokio-test = "0.4"
+
+# Ergonomic error enum matching
+assert_matches = "1.5"
+
+# Serial test execution for env var tests
+serial_test = "3.2"
+
+[lib]
+name = "mcp_datadog"
+path = "src/lib.rs"
+
 [[bin]]
 name = "mcp-datadog"
 path = "src/main.rs"
