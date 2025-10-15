@@ -4,26 +4,25 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
-#[derive(Clone)]
 pub struct CacheEntry<T> {
-    data: T,
+    data: Arc<T>,
     created_at: Instant,
     last_accessed: Instant,
 }
 
-impl<T: Clone> CacheEntry<T> {
+impl<T> CacheEntry<T> {
     fn new(data: T) -> Self {
         let now = Instant::now();
         Self {
-            data,
+            data: Arc::new(data),
             created_at: now,
             last_accessed: now,
         }
     }
 
-    fn access(&mut self) -> T {
+    fn access(&mut self) -> Arc<T> {
         self.last_accessed = Instant::now();
-        self.data.clone()
+        Arc::clone(&self.data)
     }
 
     fn age(&self) -> Duration {
@@ -31,13 +30,13 @@ impl<T: Clone> CacheEntry<T> {
     }
 }
 
-pub struct GenericCache<T: Clone> {
+pub struct GenericCache<T> {
     entries: Arc<RwLock<HashMap<String, CacheEntry<T>>>>,
     ttl: Duration,
     max_entries: usize,
 }
 
-impl<T: Clone + Serialize> GenericCache<T> {
+impl<T: Serialize> GenericCache<T> {
     pub fn new(ttl: Duration, max_entries: usize) -> Self {
         Self {
             entries: Arc::new(RwLock::new(HashMap::new())),
@@ -46,7 +45,7 @@ impl<T: Clone + Serialize> GenericCache<T> {
         }
     }
 
-    pub async fn get(&self, key: &str) -> Option<T> {
+    pub async fn get(&self, key: &str) -> Option<Arc<T>> {
         let mut cache = self.entries.write().await;
 
         if let Some(entry) = cache.get_mut(key) {
@@ -69,7 +68,7 @@ impl<T: Clone + Serialize> GenericCache<T> {
         cache.insert(key, CacheEntry::new(data));
     }
 
-    pub async fn get_or_fetch<F, Fut>(&self, key: &str, fetch_fn: F) -> crate::error::Result<T>
+    pub async fn get_or_fetch<F, Fut>(&self, key: &str, fetch_fn: F) -> crate::error::Result<Arc<T>>
     where
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = crate::error::Result<T>>,
@@ -81,9 +80,10 @@ impl<T: Clone + Serialize> GenericCache<T> {
 
         log::debug!("Cache miss: {}", key);
         let data = fetch_fn().await?;
-        self.set(key.to_string(), data.clone()).await;
+        self.set(key.to_string(), data).await;
 
-        Ok(data)
+        // Fetch again to return Arc
+        Ok(self.get(key).await.expect("Just inserted"))
     }
 
     fn evict_lru(&self, cache: &mut HashMap<String, CacheEntry<T>>) {
@@ -141,7 +141,7 @@ impl DataCache {
         &self,
         key: &str,
         fetch: F,
-    ) -> crate::error::Result<Vec<DashboardSummary>>
+    ) -> crate::error::Result<Arc<Vec<DashboardSummary>>>
     where
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = crate::error::Result<Vec<DashboardSummary>>>,
@@ -157,7 +157,7 @@ impl DataCache {
         &self,
         key: &str,
         fetch: F,
-    ) -> crate::error::Result<Vec<Monitor>>
+    ) -> crate::error::Result<Arc<Vec<Monitor>>>
     where
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = crate::error::Result<Vec<Monitor>>>,
@@ -173,7 +173,7 @@ impl DataCache {
         &self,
         key: &str,
         fetch: F,
-    ) -> crate::error::Result<Vec<Event>>
+    ) -> crate::error::Result<Arc<Vec<Event>>>
     where
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = crate::error::Result<Vec<Event>>>,
@@ -214,7 +214,8 @@ mod tests {
         cache.set("key1".to_string(), "value1".to_string()).await;
 
         let result = cache.get("key1").await;
-        assert_eq!(result, Some("value1".to_string()));
+        assert!(result.is_some());
+        assert_eq!(&**result.unwrap(), "value1");
     }
 
     #[tokio::test]
@@ -232,7 +233,9 @@ mod tests {
         cache.set("key1".to_string(), "value1".to_string()).await;
 
         // Should exist immediately
-        assert_eq!(cache.get("key1").await, Some("value1".to_string()));
+        let result = cache.get("key1").await;
+        assert!(result.is_some());
+        assert_eq!(&**result.unwrap(), "value1");
 
         // Wait for TTL to expire
         tokio::time::sleep(Duration::from_millis(150)).await;
@@ -250,7 +253,7 @@ mod tests {
 
         // Fetch should return cached value without calling fetch function
         let result = cache.get_or_fetch("key1", || async { Ok(100) }).await;
-        assert_eq!(result.unwrap(), 42); // Should be cached value, not 100
+        assert_eq!(*result.unwrap(), 42); // Should be cached value, not 100
     }
 
     #[tokio::test]
@@ -259,11 +262,12 @@ mod tests {
 
         // Fetch should call the function and cache the result
         let result = cache.get_or_fetch("key1", || async { Ok(42) }).await;
-        assert_eq!(result.unwrap(), 42);
+        assert_eq!(*result.unwrap(), 42);
 
         // Second fetch should return cached value
         let result2 = cache.get("key1").await;
-        assert_eq!(result2, Some(42));
+        assert!(result2.is_some());
+        assert_eq!(*result2.unwrap(), 42);
     }
 
     #[tokio::test]
@@ -320,7 +324,8 @@ mod tests {
         // Verify all writes succeeded
         for i in 0..10 {
             let result = cache.get(&format!("key{}", i)).await;
-            assert_eq!(result, Some(i));
+            assert!(result.is_some());
+            assert_eq!(*result.unwrap(), i);
         }
     }
 }

@@ -3,11 +3,12 @@ use std::sync::Arc;
 
 use crate::datadog::DatadogClient;
 use crate::error::Result;
-use crate::handlers::common::{ResponseFormatter, TimeHandler, TimeParams};
+use crate::handlers::common::{ResponseFormatter, TagFilter, TimeHandler, TimeParams};
 
 pub struct LogsHandler;
 
 impl TimeHandler for LogsHandler {}
+impl TagFilter for LogsHandler {}
 impl ResponseFormatter for LogsHandler {}
 
 impl LogsHandler {
@@ -20,18 +21,11 @@ impl LogsHandler {
 
         let limit = params["limit"].as_i64().map(|l| l as i32).or(Some(10));
 
-        // Parse time - v2 API uses string format initially but we need to convert from user input
-        let time = handler.parse_time(params, 1)?; // Parse as v1 to get timestamps
-
-        // Convert timestamps to ISO format for v2 logs API
+        // Parse time and convert to ISO8601 format for v2 logs API
+        let time = handler.parse_time(params, 1)?;
         let TimeParams::Timestamp { from, to } = time;
-        let from_iso = chrono::DateTime::from_timestamp(from, 0)
-            .map(|dt| dt.to_rfc3339())
-            .unwrap_or_else(|| "1 hour ago".to_string());
-
-        let to_iso = chrono::DateTime::from_timestamp(to, 0)
-            .map(|dt| dt.to_rfc3339())
-            .unwrap_or_else(|| "now".to_string());
+        let from_iso = handler.timestamp_to_iso8601(from)?;
+        let to_iso = handler.timestamp_to_iso8601(to)?;
 
         let response = client.search_logs(query, &from_iso, &to_iso, limit).await?;
 
@@ -51,31 +45,9 @@ impl LogsHandler {
             .iter()
             .map(|log| {
                 let attrs = log.attributes.as_ref();
-
-                // Apply tag filtering with explicit keywords
-                let tags = match tag_filter {
-                    "*" => {
-                        // "*" = return all tags (no filtering)
-                        attrs.and_then(|a| a.tags.clone())
-                    }
-                    "" => {
-                        // "" = exclude all tags
-                        None
-                    }
-                    filter => {
-                        // Specific prefixes = filter tags
-                        attrs.and_then(|a| {
-                            a.tags.as_ref().map(|tags| {
-                                let prefixes: Vec<&str> =
-                                    filter.split(',').map(str::trim).collect();
-                                tags.iter()
-                                    .filter(|tag| prefixes.iter().any(|p| tag.starts_with(p)))
-                                    .cloned()
-                                    .collect::<Vec<_>>()
-                            })
-                        })
-                    }
-                };
+                let tags = attrs
+                    .and_then(|a| a.tags.as_ref())
+                    .map(|t| handler.filter_tags(t, tag_filter));
 
                 json!({
                     "id": log.id,

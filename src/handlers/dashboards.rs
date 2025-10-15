@@ -60,9 +60,11 @@ impl DashboardsHandler {
 
         let all_dashboards = if page == 0 {
             let response = client.list_dashboards().await?;
-            let dashboards = response.dashboards.clone();
-            cache.set_dashboards(cache_key, dashboards.clone()).await;
-            dashboards
+            let dashboards = response.dashboards;
+            cache.set_dashboards(cache_key.clone(), dashboards).await;
+            cache
+                .get_or_fetch_dashboards(&cache_key, || async { unreachable!("Just inserted") })
+                .await?
         } else {
             cache
                 .get_or_fetch_dashboards(&cache_key, || async {

@@ -19,6 +19,15 @@ pub struct DatadogClient {
 
 impl DatadogClient {
     pub fn new(api_key: String, app_key: String, site: Option<String>) -> Result<Self> {
+        Self::with_tag_filter(api_key, app_key, site, std::env::var("DD_TAG_FILTER").ok())
+    }
+
+    pub fn with_tag_filter(
+        api_key: String,
+        app_key: String,
+        site: Option<String>,
+        tag_filter: Option<String>,
+    ) -> Result<Self> {
         let site = site.unwrap_or_else(|| "datadoghq.com".to_string());
         let base_url = format!("https://api.{}", site);
 
@@ -26,9 +35,6 @@ impl DatadogClient {
             .timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECS))
             .build()
             .map_err(DatadogError::NetworkError)?;
-
-        // Load tag filter from environment variable
-        let tag_filter = std::env::var("DD_TAG_FILTER").ok();
 
         Ok(Self {
             client,
@@ -482,40 +488,25 @@ mod tests {
     }
 
     #[test]
-    #[serial_test::serial]
-    fn test_tag_filter_from_env() {
-        unsafe {
-            std::env::remove_var("DD_TAG_FILTER");
-            std::env::set_var("DD_TAG_FILTER", "env:,service:");
-        }
+    fn test_tag_filter_injection() {
+        let client = DatadogClient::with_tag_filter(
+            "key".to_string(),
+            "app".to_string(),
+            None,
+            Some("env:,service:".to_string()),
+        )
+        .unwrap();
 
-        let client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
-
-        let filter = client.get_tag_filter();
-
-        unsafe {
-            std::env::remove_var("DD_TAG_FILTER");
-        }
-
-        assert_eq!(filter, Some("env:,service:"));
+        assert_eq!(client.get_tag_filter(), Some("env:,service:"));
     }
 
     #[test]
-    #[serial_test::serial]
     fn test_no_tag_filter() {
-        unsafe {
-            std::env::remove_var("DD_TAG_FILTER");
-        }
+        let client =
+            DatadogClient::with_tag_filter("key".to_string(), "app".to_string(), None, None)
+                .unwrap();
 
-        let client = DatadogClient::new("key".to_string(), "app".to_string(), None).unwrap();
-
-        let filter = client.get_tag_filter();
-
-        unsafe {
-            std::env::remove_var("DD_TAG_FILTER");
-        }
-
-        assert_eq!(filter, None);
+        assert_eq!(client.get_tag_filter(), None);
     }
 
     #[tokio::test]

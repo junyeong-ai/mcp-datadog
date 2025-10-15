@@ -51,8 +51,10 @@ impl EventsHandler {
                 .query_events(start, end, priority.clone(), sources.clone(), tags.clone())
                 .await?;
             let events = response.events.unwrap_or_default();
-            cache.set_events(cache_key, events.clone()).await;
-            events
+            cache.set_events(cache_key.clone(), events).await;
+            cache
+                .get_or_fetch_events(&cache_key, || async { unreachable!("Just inserted") })
+                .await?
         } else {
             cache
                 .get_or_fetch_events(&cache_key, || async {

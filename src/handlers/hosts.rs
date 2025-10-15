@@ -3,11 +3,12 @@ use std::sync::Arc;
 
 use crate::datadog::DatadogClient;
 use crate::error::Result;
-use crate::handlers::common::{ResponseFormatter, TimeHandler, TimeParams};
+use crate::handlers::common::{ResponseFormatter, TagFilter, TimeHandler, TimeParams};
 
 pub struct HostsHandler;
 
 impl TimeHandler for HostsHandler {}
+impl TagFilter for HostsHandler {}
 impl ResponseFormatter for HostsHandler {}
 
 impl HostsHandler {
@@ -39,31 +40,7 @@ impl HostsHandler {
             .unwrap_or("*");
 
         let data = json!(response.host_list.iter().map(|host| {
-            // Apply tag filtering to tags_by_source
-            let filtered_tags_by_source = match tag_filter {
-                "*" => host.tags_by_source.clone(),
-                "" => None,
-                filter => {
-                    host.tags_by_source.as_ref().map(|tags_map| {
-                        let prefixes: Vec<&str> = filter.split(',').map(str::trim).collect();
-                        let mut filtered_map = std::collections::HashMap::new();
-
-                        for (source, tags) in tags_map.iter() {
-                            let filtered_tags: Vec<String> = tags
-                                .iter()
-                                .filter(|tag| prefixes.iter().any(|p| tag.starts_with(p)))
-                                .cloned()
-                                .collect();
-
-                            if !filtered_tags.is_empty() {
-                                filtered_map.insert(source.clone(), filtered_tags);
-                            }
-                        }
-
-                        filtered_map
-                    })
-                }
-            };
+            let filtered_tags = handler.filter_tags_map(host.tags_by_source.as_ref(), tag_filter);
 
             json!({
                 "name": host.name,
@@ -74,7 +51,7 @@ impl HostsHandler {
                 "aws_name": host.aws_name,
                 "apps": host.apps,
                 "sources": host.sources,
-                "tags": filtered_tags_by_source
+                "tags": filtered_tags
             })
         }).collect::<Vec<_>>());
 

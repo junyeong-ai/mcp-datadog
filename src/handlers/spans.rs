@@ -3,12 +3,13 @@ use std::sync::Arc;
 
 use crate::datadog::DatadogClient;
 use crate::error::Result;
-use crate::handlers::common::{Paginator, ResponseFormatter, TimeHandler, TimeParams};
+use crate::handlers::common::{Paginator, ResponseFormatter, TagFilter, TimeHandler, TimeParams};
 
 pub struct SpansHandler;
 
 impl TimeHandler for SpansHandler {}
 impl Paginator for SpansHandler {}
+impl TagFilter for SpansHandler {}
 impl ResponseFormatter for SpansHandler {}
 
 impl SpansHandler {
@@ -17,25 +18,14 @@ impl SpansHandler {
 
         let query = params["query"].as_str().unwrap_or("*").to_string();
 
-        // Parse time as timestamps first, then convert to ISO8601
-        let time = handler.parse_time(params, 1)?; // Parse as v1 to get timestamps
+        // Parse time and convert to ISO8601 format for v2 API
+        let time = handler.parse_time(params, 1)?;
         let TimeParams::Timestamp {
             from: from_ts,
             to: to_ts,
         } = time;
-
-        // Convert timestamps to ISO8601 format for v2 API
-        use chrono::DateTime;
-        let from = DateTime::from_timestamp(from_ts, 0)
-            .ok_or_else(|| {
-                crate::error::DatadogError::InvalidInput("Invalid from timestamp".to_string())
-            })?
-            .to_rfc3339();
-        let to = DateTime::from_timestamp(to_ts, 0)
-            .ok_or_else(|| {
-                crate::error::DatadogError::InvalidInput("Invalid to timestamp".to_string())
-            })?
-            .to_rfc3339();
+        let from = handler.timestamp_to_iso8601(from_ts)?;
+        let to = handler.timestamp_to_iso8601(to_ts)?;
 
         let (page, page_size) = handler.parse_pagination(params);
         let limit = params["limit"]
@@ -69,25 +59,16 @@ impl SpansHandler {
                     && let Some(tags) = attrs_obj.get("tags")
                     && let Some(tags_arr) = tags.as_array()
                 {
-                    let filtered_tags = match tag_filter {
-                        "*" => tags_arr.clone(),
-                        "" => vec![],
-                        filter => {
-                            let prefixes: Vec<&str> = filter.split(',').map(str::trim).collect();
-                            tags_arr
-                                .iter()
-                                .filter(|tag| {
-                                    if let Some(tag_str) = tag.as_str() {
-                                        prefixes.iter().any(|p| tag_str.starts_with(p))
-                                    } else {
-                                        false
-                                    }
-                                })
-                                .cloned()
-                                .collect()
-                        }
-                    };
-                    attrs_obj.insert("tags".to_string(), Value::Array(filtered_tags));
+                    let tag_strings: Vec<String> = tags_arr
+                        .iter()
+                        .filter_map(|t| t.as_str().map(String::from))
+                        .collect();
+
+                    let filtered_tags = handler.filter_tags(&tag_strings, tag_filter);
+                    attrs_obj.insert(
+                        "tags".to_string(),
+                        Value::Array(filtered_tags.into_iter().map(Value::String).collect()),
+                    );
                 }
 
                 Value::Object(span_obj)

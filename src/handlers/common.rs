@@ -1,6 +1,7 @@
-use crate::error::Result;
+use crate::error::{DatadogError, Result};
 use crate::utils::parse_time;
 use serde_json::{Value, json};
+use std::collections::HashMap;
 
 /// Time parameters as timestamp format
 pub enum TimeParams {
@@ -18,6 +19,13 @@ pub trait TimeHandler {
         let from = parse_time(&from_str)?;
         let to = parse_time(&to_str)?;
         Ok(TimeParams::Timestamp { from, to })
+    }
+
+    /// Convert Unix timestamp to ISO8601 string
+    fn timestamp_to_iso8601(&self, timestamp: i64) -> Result<String> {
+        chrono::DateTime::from_timestamp(timestamp, 0)
+            .map(|dt| dt.to_rfc3339())
+            .ok_or_else(|| DatadogError::InvalidInput("Invalid timestamp".to_string()))
     }
 }
 
@@ -40,6 +48,56 @@ pub trait Paginator {
             &data[start..end]
         } else {
             &data[0..0] // Empty slice
+        }
+    }
+}
+
+pub trait TagFilter {
+    /// Filter tags based on filter mode
+    /// - "*" = return all tags (no filtering)
+    /// - "" = return empty vec (exclude all tags)
+    /// - "prefix1:,prefix2:" = return only tags starting with specified prefixes
+    fn filter_tags(&self, tags: &[String], filter: &str) -> Vec<String> {
+        match filter {
+            "*" => tags.to_vec(),
+            "" => Vec::new(),
+            filter => {
+                let prefixes: Vec<&str> = filter.split(',').map(str::trim).collect();
+                tags.iter()
+                    .filter(|tag| prefixes.iter().any(|p| tag.starts_with(p)))
+                    .cloned()
+                    .collect()
+            }
+        }
+    }
+
+    /// Filter tags_by_source HashMap
+    fn filter_tags_map(
+        &self,
+        tags_map: Option<&HashMap<String, Vec<String>>>,
+        filter: &str,
+    ) -> Option<HashMap<String, Vec<String>>> {
+        match filter {
+            "*" => tags_map.cloned(),
+            "" => None,
+            filter => tags_map.map(|map| {
+                let prefixes: Vec<&str> = filter.split(',').map(str::trim).collect();
+                let mut filtered_map = HashMap::new();
+
+                for (source, tags) in map.iter() {
+                    let filtered_tags: Vec<String> = tags
+                        .iter()
+                        .filter(|tag| prefixes.iter().any(|p| tag.starts_with(p)))
+                        .cloned()
+                        .collect();
+
+                    if !filtered_tags.is_empty() {
+                        filtered_map.insert(source.clone(), filtered_tags);
+                    }
+                }
+
+                filtered_map
+            }),
         }
     }
 }

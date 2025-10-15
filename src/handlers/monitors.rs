@@ -34,8 +34,10 @@ impl MonitorsHandler {
 
         let monitors = if page == 0 {
             let fresh_monitors = client.list_monitors(tags, monitor_tags, None, None).await?;
-            cache.set_monitors(cache_key, fresh_monitors.clone()).await;
-            fresh_monitors
+            cache.set_monitors(cache_key.clone(), fresh_monitors).await;
+            cache
+                .get_or_fetch_monitors(&cache_key, || async { unreachable!("Just inserted") })
+                .await?
         } else {
             cache
                 .get_or_fetch_monitors(&cache_key, || async {
