@@ -172,7 +172,7 @@ DD_TAG_FILTER="env:,service:"
 - **datadog_dashboards_get**: 대시보드 상세 정보
 
 ### 🔬 APM & 트레이싱 (2개)
-- **datadog_spans_search**: APM 스팬 검색 + 커서 페이지네이션
+- **datadog_spans_search**: APM 스팬 검색 + **70% 크기 감소** (스택 트레이스 압축) + 커서 페이지네이션
 - **datadog_services_list**: 서비스 카탈로그 + 환경별 필터링
 
 > 📖 **상세 파라미터와 사용법은 [사용 가능한 도구](#️-사용-가능한-도구-12개) 섹션을 참고하세요.**
@@ -420,6 +420,8 @@ Datadog 이벤트 스트림 조회
 ### datadog_spans_search
 APM 스팬 검색 (고급 필터링)
 
+**🎯 70% 응답 크기 감소**: 스택 트레이스를 기본 10줄로 압축, 빈 필드 제거!
+
 **파라미터**:
 - `query` (선택): 검색 쿼리 (기본값: `"*"`)
 - `from` (필수): 시작 시간
@@ -427,6 +429,7 @@ APM 스팬 검색 (고급 필터링)
 - `limit` (선택): 최대 스팬 수 (기본값: 10)
 - `cursor` (선택): 페이지네이션 커서
 - `tag_filter` (선택): 태그 필터링
+- `full_stack_trace` (선택): true 설정 시 전체 스택 트레이스 포함 (기본값: false)
 
 ### datadog_services_list
 서비스 카탈로그 목록

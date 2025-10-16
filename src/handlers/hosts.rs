@@ -3,12 +3,15 @@ use std::sync::Arc;
 
 use crate::datadog::DatadogClient;
 use crate::error::Result;
-use crate::handlers::common::{ResponseFormatter, TagFilter, TimeHandler, TimeParams};
+use crate::handlers::common::{
+    PaginationInfo, ResponseFilter, ResponseFormatter, TagFilter, TimeHandler, TimeParams,
+};
 
 pub struct HostsHandler;
 
 impl TimeHandler for HostsHandler {}
 impl TagFilter for HostsHandler {}
+impl ResponseFilter for HostsHandler {}
 impl ResponseFormatter for HostsHandler {}
 
 impl HostsHandler {
@@ -25,12 +28,19 @@ impl HostsHandler {
         let TimeParams::Timestamp { from, .. } = time;
         let from = Some(from);
 
-        let start = params["start"].as_i64().map(|s| s as i32);
+        let start = params["start"].as_i64().unwrap_or(0) as usize;
 
-        let count = params["count"].as_i64().map(|c| c as i32).or(Some(100));
+        let count = params["count"].as_i64().unwrap_or(100) as usize;
 
         let response = client
-            .list_hosts(filter, from, sort_field, sort_dir, start, count)
+            .list_hosts(
+                filter,
+                from,
+                sort_field,
+                sort_dir,
+                Some(start as i32),
+                Some(count as i32),
+            )
             .await?;
 
         // Get tag filter (same pattern as logs/spans)
@@ -42,7 +52,8 @@ impl HostsHandler {
         let data = json!(response.host_list.iter().map(|host| {
             let filtered_tags = handler.filter_tags_map(host.tags_by_source.as_ref(), tag_filter);
 
-            json!({
+            // Remove empty tags field if filter results in empty
+            let mut host_json = json!({
                 "name": host.name,
                 "host_name": host.host_name,
                 "up": host.up,
@@ -51,16 +62,25 @@ impl HostsHandler {
                 "aws_name": host.aws_name,
                 "apps": host.apps,
                 "sources": host.sources,
-                "tags": filtered_tags
-            })
+            });
+
+            // Only add tags if not empty
+            if let Some(tags) = filtered_tags
+                && !tags.is_empty() {
+                    host_json["tags"] = json!(tags);
+                }
+
+            host_json
         }).collect::<Vec<_>>());
 
-        let meta = json!({
-            "total_matching": response.total_matching,
-            "total_returned": response.total_returned
-        });
+        // Use PaginationInfo for consistent pagination structure
+        let pagination =
+            PaginationInfo::from_offset(response.total_matching as usize, start, count);
 
-        Ok(handler.format_list(data, None, Some(meta)))
+        Ok(json!({
+            "data": data,
+            "pagination": pagination
+        }))
     }
 }
 

@@ -247,7 +247,7 @@ impl Server {
                 },
                 {
                     "name": "datadog_spans_search",
-                    "description": "Search APM trace spans from Datadog. Returns span details with timing, service information, and trace IDs. Supports cursor-based pagination and sorting.",
+                    "description": "Search APM trace spans from Datadog. Returns span details with timing, service information, and trace IDs. Error stack traces are truncated to 10 lines by default for readability (use full_stack_trace=true for complete traces). Supports cursor-based pagination and sorting.",
                     "inputSchema": {
                         "type": "object",
                         "properties": {
@@ -290,6 +290,11 @@ impl Server {
                             "tag_filter": {
                                 "type": "string",
                                 "description": &tag_filter_desc
+                            },
+                            "full_stack_trace": {
+                                "type": "boolean",
+                                "description": "If true, include complete error stack traces. If false (default), truncate to first 10 lines.",
+                                "default": false
                             }
                         },
                         "required": ["from", "to"]

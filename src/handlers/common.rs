@@ -1,7 +1,71 @@
 use crate::error::{DatadogError, Result};
 use crate::utils::parse_time;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashMap;
+
+/// Response filtering constants
+pub const DEFAULT_STACK_TRACE_LINES: usize = 10;
+pub const MAX_STRING_LENGTH: usize = 100;
+
+/// Unified pagination structure
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PaginationInfo {
+    /// Total items available
+    pub total: usize,
+
+    /// Current page (0-indexed)
+    pub page: usize,
+
+    /// Items per page
+    pub page_size: usize,
+
+    /// Whether more pages exist
+    pub has_next: bool,
+
+    /// Next offset for offset-based APIs (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_offset: Option<usize>,
+}
+
+impl PaginationInfo {
+    /// Create pagination for single-page APIs (logs)
+    pub fn single_page(result_count: usize, limit: usize) -> Self {
+        Self {
+            total: result_count,
+            page: 0,
+            page_size: limit,
+            has_next: result_count >= limit, // Heuristic
+            next_offset: None,
+        }
+    }
+
+    /// Create pagination for offset-based APIs (hosts)
+    pub fn from_offset(total: usize, start: usize, count: usize) -> Self {
+        let page = start / count;
+        let next_offset = start + count;
+        let has_next = next_offset < total;
+
+        Self {
+            total,
+            page,
+            page_size: count,
+            has_next,
+            next_offset: if has_next { Some(next_offset) } else { None },
+        }
+    }
+
+    /// Create pagination for cursor-based APIs (spans)
+    pub fn from_cursor(total: usize, page_size: usize, has_cursor: bool) -> Self {
+        Self {
+            total,
+            page: 0,
+            page_size,
+            has_next: has_cursor,
+            next_offset: None,
+        }
+    }
+}
 
 /// Time parameters as timestamp format
 pub enum TimeParams {
@@ -98,6 +162,37 @@ pub trait TagFilter {
 
                 filtered_map
             }),
+        }
+    }
+}
+
+pub trait ResponseFilter {
+    /// Check if stack traces should be truncated
+    fn should_truncate_stack_trace(&self, params: &Value) -> bool {
+        !params
+            .get("full_stack_trace")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false) // Default: truncate
+    }
+
+    /// Truncate stack trace to specified lines
+    fn truncate_stack_trace(&self, stack: &str, max_lines: usize) -> String {
+        crate::utils::truncate_stack_trace(stack, max_lines)
+    }
+
+    /// Remove user-agent details from HTTP attributes
+    fn filter_http_verbose_fields(&self, http: &mut Value) {
+        if let Some(obj) = http.as_object_mut() {
+            obj.remove("useragent_details");
+        }
+    }
+
+    /// Truncate long strings (>max_len chars)
+    fn truncate_long_string(&self, s: &str, max_len: usize) -> String {
+        if s.len() <= max_len {
+            s.to_string()
+        } else {
+            format!("{}...", &s[..max_len])
         }
     }
 }

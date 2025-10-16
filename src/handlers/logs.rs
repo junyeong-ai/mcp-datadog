@@ -3,12 +3,15 @@ use std::sync::Arc;
 
 use crate::datadog::DatadogClient;
 use crate::error::Result;
-use crate::handlers::common::{ResponseFormatter, TagFilter, TimeHandler, TimeParams};
+use crate::handlers::common::{
+    PaginationInfo, ResponseFilter, ResponseFormatter, TagFilter, TimeHandler, TimeParams,
+};
 
 pub struct LogsHandler;
 
 impl TimeHandler for LogsHandler {}
 impl TagFilter for LogsHandler {}
+impl ResponseFilter for LogsHandler {}
 impl ResponseFormatter for LogsHandler {}
 
 impl LogsHandler {
@@ -19,7 +22,7 @@ impl LogsHandler {
             crate::error::DatadogError::InvalidInput("Missing 'query' parameter".to_string())
         })?;
 
-        let limit = params["limit"].as_i64().map(|l| l as i32).or(Some(10));
+        let limit = params["limit"].as_i64().unwrap_or(10) as usize;
 
         // Parse time and convert to ISO8601 format for v2 logs API
         let time = handler.parse_time(params, 1)?;
@@ -27,7 +30,9 @@ impl LogsHandler {
         let from_iso = handler.timestamp_to_iso8601(from)?;
         let to_iso = handler.timestamp_to_iso8601(to)?;
 
-        let response = client.search_logs(query, &from_iso, &to_iso, limit).await?;
+        let response = client
+            .search_logs(query, &from_iso, &to_iso, Some(limit as i32))
+            .await?;
 
         if let Some(errors) = response.errors {
             return Err(crate::error::DatadogError::ApiError(errors.join(", ")));
@@ -49,26 +54,48 @@ impl LogsHandler {
                     .and_then(|a| a.tags.as_ref())
                     .map(|t| handler.filter_tags(t, tag_filter));
 
-                json!({
+                // Build log entry, excluding null/empty fields
+                let mut log_entry = json!({
                     "id": log.id,
-                    "timestamp": attrs.and_then(|a| a.timestamp.clone()),
-                    "message": attrs.and_then(|a| a.message.clone()),
-                    "host": attrs.and_then(|a| a.host.clone()),
-                    "service": attrs.and_then(|a| a.service.clone()),
-                    "tags": tags,
-                    "status": attrs.and_then(|a| a.status.clone())
-                })
+                });
+
+                // Only add non-null fields
+                if let Some(timestamp) = attrs.and_then(|a| a.timestamp.as_ref()) {
+                    log_entry["timestamp"] = json!(timestamp);
+                }
+                if let Some(message) = attrs.and_then(|a| a.message.as_ref()) {
+                    log_entry["message"] = json!(message);
+                }
+                if let Some(host) = attrs.and_then(|a| a.host.as_ref()) {
+                    log_entry["host"] = json!(host);
+                }
+                if let Some(service) = attrs.and_then(|a| a.service.as_ref()) {
+                    log_entry["service"] = json!(service);
+                }
+                if let Some(status) = attrs.and_then(|a| a.status.as_ref()) {
+                    log_entry["status"] = json!(status);
+                }
+
+                // Only add tags if not empty
+                if let Some(tags_vec) = tags
+                    && !tags_vec.is_empty()
+                {
+                    log_entry["tags"] = json!(tags_vec);
+                }
+
+                log_entry
             })
             .collect::<Vec<_>>();
 
-        let meta = json!({
-            "query": query,
-            "from": from_iso,
-            "to": to_iso,
-            "total": logs.len()
-        });
+        let result_count = logs.len();
 
-        Ok(handler.format_list(json!(logs), None, Some(meta)))
+        // Use PaginationInfo for single-page API with heuristic
+        let pagination = PaginationInfo::single_page(result_count, limit);
+
+        Ok(json!({
+            "data": logs,
+            "pagination": pagination
+        }))
     }
 }
 

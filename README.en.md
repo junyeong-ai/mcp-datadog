@@ -172,7 +172,7 @@ DD_TAG_FILTER="env:,service:"
 - **datadog_dashboards_get**: Dashboard details
 
 ### 🔬 APM & Tracing (2 tools)
-- **datadog_spans_search**: APM span search + cursor pagination
+- **datadog_spans_search**: APM span search + **70% size reduction** (stack trace truncation) + cursor pagination
 - **datadog_services_list**: Service catalog + environment filtering
 
 > 📖 **For detailed parameters and usage, see [Available Tools](#️-available-tools-12) section.**
@@ -420,6 +420,8 @@ Get detailed dashboard information
 ### datadog_spans_search
 Search APM spans (advanced filtering)
 
+**🎯 70% Response Size Reduction**: Stack traces truncated to 10 lines by default, empty fields removed!
+
 **Parameters**:
 - `query` (optional): Search query (default: `"*"`)
 - `from` (required): Start time
@@ -427,6 +429,7 @@ Search APM spans (advanced filtering)
 - `limit` (optional): Maximum spans (default: 10)
 - `cursor` (optional): Pagination cursor
 - `tag_filter` (optional): Tag filtering
+- `full_stack_trace` (optional): If true, include complete stack traces (default: false)
 
 ### datadog_services_list
 List services from catalog

@@ -33,6 +33,8 @@ High-performance Rust 2024 MCP server providing AI agents with Datadog observabi
 **Handlers** (`src/handlers/`): Trait-based tool implementations
 - `TimeHandler`: Unified time parsing (natural language, ISO8601, Unix)
 - `TagFilter`: Unified tag filtering across logs/spans/hosts
+- `ResponseFilter`: Response optimization (stack trace truncation, field filtering)
+- `PaginationInfo`: Unified pagination structure (single_page, from_offset, from_cursor)
 - `Paginator`: Client-side pagination logic
 - `ResponseFormatter`: Consistent JSON response structure
 
@@ -96,7 +98,48 @@ fn timestamp_to_iso8601(&self, timestamp: i64) -> Result<String>;
 
 **Flow:** User input → interim lib → Unix timestamp → API format (v1: timestamp, v2: ISO8601)
 
-### 4. Error Handling
+### 4. Response Optimization
+
+**ResponseFilter trait** - 70% size reduction for Spans API:
+```rust
+pub trait ResponseFilter {
+    fn should_truncate_stack_trace(&self, params: &Value) -> bool;
+    fn truncate_stack_trace(&self, stack: &str, max_lines: usize) -> String;
+    fn filter_http_verbose_fields(&self, http: &mut Value);
+    fn truncate_long_string(&self, s: &str, max_len: usize) -> String;
+}
+```
+
+**PaginationInfo struct** - Unified pagination:
+```rust
+pub struct PaginationInfo {
+    pub total: usize,
+    pub page: usize,
+    pub page_size: usize,
+    pub has_next: bool,
+    pub next_offset: Option<usize>,
+}
+
+// Three constructors for different API types
+PaginationInfo::single_page(count, limit)      // Logs (heuristic)
+PaginationInfo::from_offset(total, start, count)  // Hosts
+PaginationInfo::from_cursor(total, size, has_cursor)  // Spans
+```
+
+**Usage:**
+```rust
+impl ResponseFilter for SpansHandler {}
+
+// In handler
+if handler.should_truncate_stack_trace(params) {
+    truncated = handler.truncate_stack_trace(stack, 10);
+}
+
+let pagination = PaginationInfo::from_cursor(count, size, has_cursor);
+Ok(json!({ "data": data, "pagination": pagination }))
+```
+
+### 5. Error Handling
 
 **Comprehensive types** (`src/error.rs`):
 ```rust
@@ -193,7 +236,7 @@ pub struct Response { pub data: Vec<Item> }
 
 **Quick validation:**
 ```bash
-cargo test                      # All tests (151)
+cargo test                      # All tests (154)
 cargo build --release           # Release build
 cargo clippy                    # Lint check
 ```
@@ -292,14 +335,25 @@ cargo clippy
 
 ## Response Structure
 
-**All tools return:**
+**Optimized structure (70% smaller for Spans):**
 ```json
 {
-  "data": { /* Essential data only */ },
-  "meta": { /* query, from, to, counts */ },
-  "pagination": { /* page, page_size, total, has_next */ }
+  "data": [ /* Clean data - no null/empty fields */ ],
+  "pagination": {
+    "total": 100,
+    "page": 0,
+    "page_size": 10,
+    "has_next": true,
+    "next_offset": 100  // Only for offset-based APIs
+  }
 }
 ```
+
+**Key optimizations:**
+- Stack traces truncated to 10 lines (use `full_stack_trace: true` for complete)
+- Null/empty fields removed
+- Single `pagination` object (meta removed)
+- Consistent across all APIs
 
 **Design:** Minimal, consistent, AI-agent optimized.
 

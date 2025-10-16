@@ -44,6 +44,24 @@ pub fn format_timestamp(timestamp: i64) -> String {
     }
 }
 
+/// Truncate error stack trace to specified number of lines
+/// If stack exceeds max_lines, truncates with continuation indicator
+pub fn truncate_stack_trace(stack: &str, max_lines: usize) -> String {
+    let lines: Vec<&str> = stack.lines().collect();
+
+    if lines.len() <= max_lines {
+        return stack.to_string();
+    }
+
+    let truncated = lines[..max_lines].join("\n");
+    let omitted = lines.len() - max_lines;
+
+    format!(
+        "{}\n... [{} more lines. Use full_stack_trace=true to see all]",
+        truncated, omitted
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -119,5 +137,49 @@ mod tests {
         assert!(parse_time("NOW").is_ok());
         assert!(parse_time("Now").is_ok());
         assert!(parse_time("  now  ").is_ok());
+    }
+
+    #[test]
+    fn test_truncate_stack_trace_within_limit() {
+        let short_stack = "Line1\nLine2\nLine3";
+        let result = truncate_stack_trace(short_stack, 10);
+        assert_eq!(result, short_stack);
+    }
+
+    #[test]
+    fn test_truncate_stack_trace_exceeds_limit() {
+        let stack = (0..20)
+            .map(|i| format!("Line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let result = truncate_stack_trace(&stack, 10);
+
+        // Should contain first 10 lines
+        for i in 0..10 {
+            assert!(result.contains(&format!("Line {}", i)));
+        }
+
+        // Should NOT contain lines beyond 10
+        assert!(!result.contains("Line 10"));
+        assert!(!result.contains("Line 19"));
+
+        // Should contain truncation indicator
+        assert!(result.contains("... [10 more lines"));
+        assert!(result.contains("full_stack_trace=true"));
+    }
+
+    #[test]
+    fn test_truncate_stack_trace_exact_limit() {
+        let stack = (0..10)
+            .map(|i| format!("Line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let result = truncate_stack_trace(&stack, 10);
+
+        // Should return unmodified since it equals limit
+        assert_eq!(result, stack);
+        assert!(!result.contains("more lines"));
     }
 }
