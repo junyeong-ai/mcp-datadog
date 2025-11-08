@@ -426,6 +426,52 @@ impl Server {
                         },
                         "required": ["from", "to"]
                     }
+                },
+                {
+                    "name": "datadog_rum_events_search",
+                    "description": "Search RUM (Real User Monitoring) events. Returns user experience data including sessions, views, actions, resources, and errors. Supports filtering by application, user behavior, and performance metrics.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "RUM search query (e.g., '@type:session AND @session.type:user', '@view.url_path:/checkout')",
+                                "default": "*"
+                            },
+                            "from": {
+                                "type": "string",
+                                "description": "Start time (supports natural language like '1 hour ago', ISO8601, or Unix timestamps)",
+                                "default": "1 hour ago"
+                            },
+                            "to": {
+                                "type": "string",
+                                "description": "End time (supports natural language like 'now', ISO8601, or Unix timestamps)",
+                                "default": "now"
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "Maximum number of events to return",
+                                "default": 10
+                            },
+                            "cursor": {
+                                "type": "string",
+                                "description": "Pagination cursor from previous response"
+                            },
+                            "sort": {
+                                "type": "string",
+                                "description": "Sort order (e.g., 'timestamp', '-timestamp' for descending)"
+                            },
+                            "tag_filter": {
+                                "type": "string",
+                                "description": &tag_filter_desc
+                            },
+                            "full_stack_trace": {
+                                "type": "boolean",
+                                "description": "If true, include complete error stack traces. If false (default), truncate to first 10 lines.",
+                                "default": false
+                            }
+                        }
+                    }
                 }
             ]
         });

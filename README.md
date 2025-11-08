@@ -12,7 +12,7 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.90%2B%20(2024%20edition)-orange?style=flat-square&logo=rust)](https://www.rust-lang.org)
 [![MCP](https://img.shields.io/badge/MCP-2024--11--05-blue?style=flat-square)](https://modelcontextprotocol.io)
-[![Tools](https://img.shields.io/badge/MCP%20tools-12-blue?style=flat-square)](#%EF%B8%8F-사용-가능한-도구-12개)
+[![Tools](https://img.shields.io/badge/MCP%20tools-13-blue?style=flat-square)](#%EF%B8%8F-사용-가능한-도구-13개)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![Datadog](https://img.shields.io/badge/Datadog-API%20v1%2Fv2-632CA6?style=flat-square)](https://docs.datadoghq.com/api/)
 
@@ -26,7 +26,7 @@
 - [🚀 빠른 시작 (3분)](#-빠른-시작-3분)
 - [💡 왜 이걸 써야 하나요?](#-왜-이걸-써야-하나요)
 - [🎯 실제 사용 예제](#-실제-사용-예제)
-- [🛠️ 사용 가능한 도구 (12개)](#️-사용-가능한-도구-12개)
+- [🛠️ 사용 가능한 도구 (13개)](#️-사용-가능한-도구-13개)
 - [⚙️ 환경 변수 가이드](#️-환경-변수-가이드)
 - [🏗️ 기술 스택 & 아키텍처](#️-기술-스택--아키텍처)
 - [🧪 개발 & 테스팅](#-개발--테스팅)
@@ -175,7 +175,10 @@ DD_TAG_FILTER="env:,service:"
 - **datadog_spans_search**: APM 스팬 검색 + **70% 크기 감소** (스택 트레이스 압축) + 커서 페이지네이션
 - **datadog_services_list**: 서비스 카탈로그 + 환경별 필터링
 
-> 📖 **상세 파라미터와 사용법은 [사용 가능한 도구](#️-사용-가능한-도구-12개) 섹션을 참고하세요.**
+### 🌐 RUM (Real User Monitoring) (1개)
+- **datadog_rum_events_search**: 사용자 경험 모니터링 + 세션/뷰/액션/리소스/에러 추적 + 스택 트레이스 압축
+
+> 📖 **상세 파라미터와 사용법은 [사용 가능한 도구](#️-사용-가능한-도구-13개) 섹션을 참고하세요.**
 
 ---
 
@@ -281,7 +284,7 @@ DD_TAG_FILTER=""
 
 ---
 
-## 🛠️ 사용 가능한 도구 (12개)
+## 🛠️ 사용 가능한 도구 (13개)
 
 <details>
 <summary><b>📊 메트릭 & 인프라 (2개)</b></summary>
@@ -415,7 +418,7 @@ Datadog 이벤트 스트림 조회
 </details>
 
 <details>
-<summary><b>🔬 APM & 트레이싱 (3개)</b></summary>
+<summary><b>🔬 APM & 트레이싱 (2개)</b></summary>
 
 ### datadog_spans_search
 APM 스팬 검색 (고급 필터링)
@@ -438,6 +441,47 @@ APM 스팬 검색 (고급 필터링)
 - `env` (선택): 환경 필터
 - `page` (선택): 페이지 번호 (기본값: 0)
 - `page_size` (선택): 페이지당 항목 수 (기본값: 10)
+
+</details>
+
+<details>
+<summary><b>🌐 RUM (Real User Monitoring) (1개)</b></summary>
+
+### datadog_rum_events_search
+사용자 경험 및 프론트엔드 성능 모니터링
+
+**🎯 스택 트레이스 압축**: 에러 스택을 기본 10줄로 압축하여 토큰 효율 최적화!
+
+**파라미터**:
+- `query` (선택): RUM 검색 쿼리 (기본값: `"*"`)
+  - 예시: `"@type:session AND @session.type:user"`
+  - 예시: `"@view.url_path:/checkout AND @error.message:*"`
+  - 예시: `"@resource.status_code:>=400"`
+- `from` (선택): 시작 시간 (기본값: `"1 hour ago"`)
+- `to` (선택): 종료 시간 (기본값: `"now"`)
+- `limit` (선택): 최대 이벤트 수 (기본값: 10)
+- `cursor` (선택): 페이지네이션 커서
+- `sort` (선택): 정렬 순서 (예: `"timestamp"`, `"-timestamp"`)
+- `tag_filter` (선택): 태그 필터링
+- `full_stack_trace` (선택): true 설정 시 전체 에러 스택 트레이스 포함 (기본값: false)
+
+**RUM 이벤트 타입**:
+- **세션 (Session)**: 사용자 세션 정보, 재생 가능 여부
+- **뷰 (View)**: 페이지 뷰, URL, 로딩 시간, 체류 시간
+- **액션 (Action)**: 사용자 상호작용 (클릭, 탭, 스크롤)
+- **리소스 (Resource)**: XHR, Fetch, CSS, JS, 이미지 로딩 성능
+- **에러 (Error)**: JavaScript 에러, 네트워크 에러, 크래시
+
+**예시**:
+```json
+{
+  "query": "@type:error AND @application.name:web-app",
+  "from": "1 hour ago",
+  "to": "now",
+  "limit": 25,
+  "tag_filter": "env:,service:"
+}
+```
 
 </details>
 

@@ -12,7 +12,7 @@ English | [한국어](./README.md)
 
 [![Rust](https://img.shields.io/badge/rust-1.90%2B%20(2024%20edition)-orange?style=flat-square&logo=rust)](https://www.rust-lang.org)
 [![MCP](https://img.shields.io/badge/MCP-2024--11--05-blue?style=flat-square)](https://modelcontextprotocol.io)
-[![Tools](https://img.shields.io/badge/MCP%20tools-12-blue?style=flat-square)](#%EF%B8%8F-available-tools-12)
+[![Tools](https://img.shields.io/badge/MCP%20tools-13-blue?style=flat-square)](#%EF%B8%8F-available-tools-13)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![Datadog](https://img.shields.io/badge/Datadog-API%20v1%2Fv2-632CA6?style=flat-square)](https://docs.datadoghq.com/api/)
 
@@ -26,7 +26,7 @@ English | [한국어](./README.md)
 - [🚀 Quick Start (3 Minutes)](#-quick-start-3-minutes)
 - [💡 Why Use This?](#-why-use-this)
 - [🎯 Real-World Examples](#-real-world-examples)
-- [🛠️ Available Tools (12)](#️-available-tools-12)
+- [🛠️ Available Tools (13)](#️-available-tools-13)
 - [⚙️ Environment Variables Guide](#️-environment-variables-guide)
 - [🏗️ Tech Stack & Architecture](#️-tech-stack--architecture)
 - [🧪 Development & Testing](#-development--testing)
@@ -175,7 +175,10 @@ DD_TAG_FILTER="env:,service:"
 - **datadog_spans_search**: APM span search + **70% size reduction** (stack trace truncation) + cursor pagination
 - **datadog_services_list**: Service catalog + environment filtering
 
-> 📖 **For detailed parameters and usage, see [Available Tools](#️-available-tools-12) section.**
+### 🌐 RUM (Real User Monitoring) (1 tool)
+- **datadog_rum_events_search**: User experience monitoring + session/view/action/resource/error tracking + stack trace compression
+
+> 📖 **For detailed parameters and usage, see [Available Tools](#️-available-tools-13) section.**
 
 ---
 
@@ -281,7 +284,7 @@ DD_TAG_FILTER=""
 
 ---
 
-## 🛠️ Available Tools (12)
+## 🛠️ Available Tools (13)
 
 <details>
 <summary><b>📊 Metrics & Infrastructure (2)</b></summary>
@@ -415,7 +418,7 @@ Get detailed dashboard information
 </details>
 
 <details>
-<summary><b>🔬 APM & Tracing (3)</b></summary>
+<summary><b>🔬 APM & Tracing (2)</b></summary>
 
 ### datadog_spans_search
 Search APM spans (advanced filtering)
@@ -438,6 +441,47 @@ List services from catalog
 - `env` (optional): Environment filter
 - `page` (optional): Page number (default: 0)
 - `page_size` (optional): Items per page (default: 10)
+
+</details>
+
+<details>
+<summary><b>🌐 RUM (Real User Monitoring) (1)</b></summary>
+
+### datadog_rum_events_search
+User experience and frontend performance monitoring
+
+**🎯 Stack Trace Compression**: Error stacks truncated to 10 lines by default for token efficiency!
+
+**Parameters**:
+- `query` (optional): RUM search query (default: `"*"`)
+  - Example: `"@type:session AND @session.type:user"`
+  - Example: `"@view.url_path:/checkout AND @error.message:*"`
+  - Example: `"@resource.status_code:>=400"`
+- `from` (optional): Start time (default: `"1 hour ago"`)
+- `to` (optional): End time (default: `"now"`)
+- `limit` (optional): Maximum events (default: 10)
+- `cursor` (optional): Pagination cursor
+- `sort` (optional): Sort order (e.g., `"timestamp"`, `"-timestamp"`)
+- `tag_filter` (optional): Tag filtering
+- `full_stack_trace` (optional): If true, include complete error stack traces (default: false)
+
+**RUM Event Types**:
+- **Session**: User session information, replay availability
+- **View**: Page views, URL, loading time, time spent
+- **Action**: User interactions (clicks, taps, scrolls)
+- **Resource**: XHR, Fetch, CSS, JS, image loading performance
+- **Error**: JavaScript errors, network errors, crashes
+
+**Example**:
+```json
+{
+  "query": "@type:error AND @application.name:web-app",
+  "from": "1 hour ago",
+  "to": "now",
+  "limit": 25,
+  "tag_filter": "env:,service:"
+}
+```
 
 </details>
 
@@ -476,7 +520,7 @@ List services from catalog
 │  ┌─────────────────────────────────────────┐   │
 │  │  MCP Protocol Handler                   │   │
 │  │  - JSON-RPC 2.0                         │   │
-│  │  - Tool Schema (12 tools)               │   │
+│  │  - Tool Schema (13 tools)               │   │
 │  │  - Router                               │   │
 │  └─────────────┬───────────────────────────┘   │
 │                │                                 │

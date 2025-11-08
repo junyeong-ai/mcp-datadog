@@ -107,6 +107,9 @@ impl Server {
                 )
                 .await
             }
+            "datadog_rum_events_search" => {
+                handlers::rum::RumHandler::search_events(self.client.clone(), arguments).await
+            }
             _ => {
                 let error_response = Self::create_error_response(
                     -32602,

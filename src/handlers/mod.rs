@@ -7,5 +7,6 @@ pub mod logs_aggregate;
 pub mod logs_timeseries;
 pub mod metrics;
 pub mod monitors;
+pub mod rum;
 pub mod services;
 pub mod spans;

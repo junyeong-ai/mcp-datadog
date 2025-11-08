@@ -131,19 +131,17 @@ impl MetricsHandler {
             }
             if let Some(ref unit) = s.unit {
                 // Simplify unit - only include the first non-null unit
-                if let Some(first_unit) = unit.iter().find(|u| u.is_some()) {
-                    if let Some(u) = first_unit {
+                if let Some(first_unit) = unit.iter().find(|u| u.is_some())
+                    && let Some(u) = first_unit {
                         let mut unit_obj = serde_json::Map::new();
                         unit_obj.insert("name".to_string(), json!(u.name));
                         unit_obj.insert("family".to_string(), json!(u.family));
-                        if let Some(ref short_name) = u.short_name {
-                            if !short_name.is_empty() {
+                        if let Some(ref short_name) = u.short_name
+                            && !short_name.is_empty() {
                                 unit_obj.insert("short_name".to_string(), json!(short_name));
                             }
-                        }
                         series_obj.insert("unit".to_string(), json!(unit_obj));
                     }
-                }
             }
 
             json!(series_obj)
@@ -153,28 +151,34 @@ impl MetricsHandler {
         let mut meta = serde_json::Map::new();
         meta.insert("query".to_string(), json!(response.query));
         meta.insert("status".to_string(), json!(response.status));
-        meta.insert("from".to_string(), json!(crate::utils::format_timestamp(from_ts)));
-        meta.insert("to".to_string(), json!(crate::utils::format_timestamp(to_ts)));
+        meta.insert(
+            "from".to_string(),
+            json!(crate::utils::format_timestamp(from_ts)),
+        );
+        meta.insert(
+            "to".to_string(),
+            json!(crate::utils::format_timestamp(to_ts)),
+        );
 
         // Only include error if present
-        if let Some(ref error) = response.error {
-            if !error.is_empty() {
-                meta.insert("error".to_string(), json!(error));
-            }
+        if let Some(ref error) = response.error
+            && !error.is_empty()
+        {
+            meta.insert("error".to_string(), json!(error));
         }
 
         // Only include message if present and non-empty
-        if let Some(ref message) = response.message {
-            if !message.is_empty() {
-                meta.insert("message".to_string(), json!(message));
-            }
+        if let Some(ref message) = response.message
+            && !message.is_empty()
+        {
+            meta.insert("message".to_string(), json!(message));
         }
 
         // Only include group_by if present and non-empty
-        if let Some(ref group_by) = response.group_by {
-            if !group_by.is_empty() {
-                meta.insert("group_by".to_string(), json!(group_by));
-            }
+        if let Some(ref group_by) = response.group_by
+            && !group_by.is_empty()
+        {
+            meta.insert("group_by".to_string(), json!(group_by));
         }
 
         if applied_rollup {

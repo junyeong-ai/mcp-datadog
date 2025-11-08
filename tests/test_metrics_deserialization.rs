@@ -1,4 +1,3 @@
-
 #[test]
 fn test_real_api_response_deserialization() {
     // Real response from Datadog API (success case)
@@ -48,24 +47,32 @@ fn test_real_api_response_deserialization() {
 }"#;
 
     // Test success case
-    let result_success: Result<mcp_datadog::datadog::models::MetricsResponse, _> = 
+    let result_success: Result<mcp_datadog::datadog::models::MetricsResponse, _> =
         serde_json::from_str(json_success);
-    
-    assert!(result_success.is_ok(), "Failed to deserialize success response: {:?}", result_success.err());
-    
+
+    assert!(
+        result_success.is_ok(),
+        "Failed to deserialize success response: {:?}",
+        result_success.err()
+    );
+
     let response = result_success.unwrap();
     assert_eq!(response.status, "ok");
     assert_eq!(response.resp_version, Some(1));
     assert_eq!(response.series.len(), 1);
     assert_eq!(response.message, Some("".to_string()));
     assert_eq!(response.group_by, Some(vec![]));
-    
+
     // Test error case
-    let result_error: Result<mcp_datadog::datadog::models::MetricsResponse, _> = 
+    let result_error: Result<mcp_datadog::datadog::models::MetricsResponse, _> =
         serde_json::from_str(json_error);
-    
-    assert!(result_error.is_ok(), "Failed to deserialize error response: {:?}", result_error.err());
-    
+
+    assert!(
+        result_error.is_ok(),
+        "Failed to deserialize error response: {:?}",
+        result_error.err()
+    );
+
     let error_response = result_error.unwrap();
     assert_eq!(error_response.status, "error");
     assert!(error_response.error.is_some());

@@ -435,6 +435,46 @@ impl DatadogClient {
         )
         .await
     }
+
+    // ============= RUM API Methods =============
+
+    /// Search RUM events
+    pub async fn search_rum_events(
+        &self,
+        query: &str,
+        from: &str,
+        to: &str,
+        limit: Option<i32>,
+        cursor: Option<String>,
+        sort: Option<String>,
+    ) -> Result<RumEventsResponse> {
+        let mut body = serde_json::json!({
+            "filter": {
+                "query": query,
+                "from": from,
+                "to": to
+            },
+            "page": {
+                "limit": limit.unwrap_or(10)
+            }
+        });
+
+        if let Some(s) = sort {
+            body["sort"] = serde_json::json!(s);
+        }
+
+        if let Some(c) = cursor {
+            body["page"]["cursor"] = serde_json::json!(c);
+        }
+
+        self.request(
+            reqwest::Method::POST,
+            "/api/v2/rum/events/search",
+            None,
+            Some(body),
+        )
+        .await
+    }
 }
 
 #[cfg(test)]
