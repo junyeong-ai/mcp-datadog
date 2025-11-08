@@ -7,12 +7,22 @@ use std::collections::HashMap;
 pub struct MetricsResponse {
     pub status: String,
     pub res_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resp_version: Option<i32>,
     pub from_date: i64,
     pub to_date: i64,
     pub series: Vec<MetricSeries>,
     pub query: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub values: Option<Vec<Vec<Option<f64>>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub times: Option<Vec<i64>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_by: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,7 +49,7 @@ pub struct Unit {
     pub name: String,
     pub plural: String,
     pub scale_factor: f64,
-    pub short_name: String,
+    pub short_name: Option<String>,
     pub id: Option<i64>,
 }
 
@@ -393,4 +403,124 @@ pub struct LogsGroupBySort {
     pub aggregation: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metric: Option<String>,
+}
+
+// ============= RUM Models =============
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumEventsResponse {
+    pub data: Option<Vec<RumEvent>>,
+    pub meta: Option<RumMeta>,
+    pub links: Option<RumLinks>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumEvent {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub event_type: Option<String>,
+    pub attributes: Option<RumAttributes>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumAttributes {
+    pub timestamp: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub service: Option<String>,
+    pub application: Option<RumApplication>,
+    pub view: Option<RumView>,
+    pub session: Option<RumSession>,
+    pub action: Option<RumAction>,
+    pub resource: Option<RumResource>,
+    pub error: Option<RumError>,
+    pub attributes: Option<HashMap<String, serde_json::Value>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumApplication {
+    pub id: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumView {
+    pub id: Option<String>,
+    pub name: Option<String>,
+    pub url: Option<String>,
+    pub url_path: Option<String>,
+    pub time_spent: Option<i64>,
+    pub loading_time: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumSession {
+    pub id: Option<String>,
+    #[serde(rename = "type")]
+    pub session_type: Option<String>,
+    pub has_replay: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumAction {
+    pub id: Option<String>,
+    pub name: Option<String>,
+    #[serde(rename = "type")]
+    pub action_type: Option<String>,
+    pub target: Option<RumActionTarget>,
+    pub loading_time: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumActionTarget {
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumResource {
+    pub id: Option<String>,
+    pub name: Option<String>,
+    #[serde(rename = "type")]
+    pub resource_type: Option<String>,
+    pub url: Option<String>,
+    pub method: Option<String>,
+    pub status_code: Option<i32>,
+    pub duration: Option<i64>,
+    pub size: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumError {
+    pub id: Option<String>,
+    pub message: Option<String>,
+    pub source: Option<String>,
+    #[serde(rename = "type")]
+    pub error_type: Option<String>,
+    pub stack: Option<String>,
+    pub is_crash: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumMeta {
+    pub page: Option<RumPage>,
+    pub elapsed: Option<i64>,
+    pub request_id: Option<String>,
+    pub status: Option<String>,
+    pub warnings: Option<Vec<RumWarning>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumPage {
+    pub after: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumLinks {
+    pub next: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RumWarning {
+    pub code: Option<String>,
+    pub detail: Option<String>,
+    pub title: Option<String>,
 }

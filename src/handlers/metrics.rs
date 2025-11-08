@@ -116,32 +116,75 @@ impl MetricsHandler {
                 })
             };
 
-            json!({
-                "metric": s.metric,
-                "scope": s.scope,
-                "points": points_data,
-                "unit": s.unit,
-                "aggr": s.aggr,
-                "interval": s.interval
-            })
+            // Build series object with only useful fields
+            let mut series_obj = serde_json::Map::new();
+            series_obj.insert("metric".to_string(), json!(s.metric));
+            series_obj.insert("scope".to_string(), json!(s.scope));
+            series_obj.insert("points".to_string(), points_data);
+
+            // Add optional fields only if meaningful
+            if let Some(ref aggr) = s.aggr {
+                series_obj.insert("aggr".to_string(), json!(aggr));
+            }
+            if let Some(interval) = s.interval {
+                series_obj.insert("interval".to_string(), json!(interval));
+            }
+            if let Some(ref unit) = s.unit {
+                // Simplify unit - only include the first non-null unit
+                if let Some(first_unit) = unit.iter().find(|u| u.is_some()) {
+                    if let Some(u) = first_unit {
+                        let mut unit_obj = serde_json::Map::new();
+                        unit_obj.insert("name".to_string(), json!(u.name));
+                        unit_obj.insert("family".to_string(), json!(u.family));
+                        if let Some(ref short_name) = u.short_name {
+                            if !short_name.is_empty() {
+                                unit_obj.insert("short_name".to_string(), json!(short_name));
+                            }
+                        }
+                        series_obj.insert("unit".to_string(), json!(unit_obj));
+                    }
+                }
+            }
+
+            json!(series_obj)
         }).collect::<Vec<_>>();
 
-        let mut meta = json!({
-            "query": response.query,
-            "status": response.status,
-            "from": crate::utils::format_timestamp(from_ts),
-            "to": crate::utils::format_timestamp(to_ts),
-            "error": response.error
-        });
+        // Build optimized meta - only include meaningful fields
+        let mut meta = serde_json::Map::new();
+        meta.insert("query".to_string(), json!(response.query));
+        meta.insert("status".to_string(), json!(response.status));
+        meta.insert("from".to_string(), json!(crate::utils::format_timestamp(from_ts)));
+        meta.insert("to".to_string(), json!(crate::utils::format_timestamp(to_ts)));
 
-        if applied_rollup {
-            meta["rollup_applied"] = json!(true);
-            if let Some(max) = max_points {
-                meta["requested_max_points"] = json!(max);
+        // Only include error if present
+        if let Some(ref error) = response.error {
+            if !error.is_empty() {
+                meta.insert("error".to_string(), json!(error));
             }
         }
 
-        Ok(handler.format_list(json!(series), None, Some(meta)))
+        // Only include message if present and non-empty
+        if let Some(ref message) = response.message {
+            if !message.is_empty() {
+                meta.insert("message".to_string(), json!(message));
+            }
+        }
+
+        // Only include group_by if present and non-empty
+        if let Some(ref group_by) = response.group_by {
+            if !group_by.is_empty() {
+                meta.insert("group_by".to_string(), json!(group_by));
+            }
+        }
+
+        if applied_rollup {
+            meta.insert("rollup_applied".to_string(), json!(true));
+            if let Some(max) = max_points {
+                meta.insert("requested_max_points".to_string(), json!(max));
+            }
+        }
+
+        Ok(handler.format_list(json!(series), None, Some(json!(meta))))
     }
 }
 

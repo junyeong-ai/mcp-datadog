@@ -236,7 +236,7 @@ pub struct Response { pub data: Vec<Item> }
 
 **Quick validation:**
 ```bash
-cargo test                      # All tests (154)
+cargo test                      # All tests (161)
 cargo build --release           # Release build
 cargo clippy                    # Lint check
 ```
@@ -289,7 +289,8 @@ src/
     ├── hosts.rs         # Infrastructure
     ├── dashboards.rs    # Dashboards
     ├── spans.rs         # APM spans
-    └── services.rs      # Service catalog
+    ├── services.rs      # Service catalog
+    └── rum.rs           # RUM events
 ```
 
 ## Common Issues
